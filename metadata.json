@@ -1,0 +1,6 @@
+{
+  "name": "SpireStage",
+  "description": "A mobile-first retro habit tracker RPG featuring daily habit cards, combat arenas, and simulated AI verification.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

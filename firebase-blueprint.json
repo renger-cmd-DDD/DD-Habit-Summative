@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "GameState": {
+      "title": "Game State",
+      "description": "The complete state of the game for a user.",
+      "type": "object",
+      "properties": {
+        "user": { "type": "object" },
+        "habits": { "type": "object" },
+        "inventory": { "type": "array" },
+        "lastResetDate": { "type": "string" }
+      },
+      "required": ["user", "habits", "inventory", "lastResetDate"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "GameState",
+      "description": "Storage for user's game state."
+    }
+  }
+}

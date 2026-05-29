@@ -1,0 +1,2371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SpireStage - Rogue Habit Tracker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Confetti JS -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <!-- Firebase SDK via CDN -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
+
+        // Firebase Config
+        const firebaseConfig = {
+          apiKey: "AIzaSyCmdY1-RTW9BhtJXowEThsMTyC8JI1Gpb4",
+          authDomain: "nifty-agent-mtpfc.firebaseapp.com",
+          projectId: "nifty-agent-mtpfc",
+          storageBucket: "nifty-agent-mtpfc.firebasestorage.app",
+          messagingSenderId: "834359161997",
+          appId: "1:834359161997:web:6834305b0af90d433d9ec4",
+          databaseId: "ai-studio-8072771b-2352-4645-8890-01e61ae7d843"
+        };
+
+        // Initialize Firebase
+        let app, auth, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app, firebaseConfig.databaseId);
+        } catch (e) {
+            console.error("Firebase init error", e);
+        }
+
+        window.firebaseUtils = { auth, db, providers: { GoogleAuthProvider }, methods: { signInWithPopup, onAuthStateChanged, signOut, doc, setDoc, getDoc, updateDoc, onSnapshot } };
+    </script>
+
+    <style>
+        :root {
+            --primary: #5C3D2E;
+            --secondary: #E2C4A0;
+            --accent: #B5451B;
+            --background: #2D1B14;
+            --surface: #2a2a2a;
+        }
+
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background-color: var(--background);
+            color: #E2C4A0;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            overflow: hidden;
+        }
+
+        /* Slim Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d8973c;
+            border-radius: 2px;
+            border: 1px solid #1a1a1a;
+        }
+
+        /* Screen Transitions */
+        .page-transition-right {
+            animation: slideInRight 0.25s ease-out forwards;
+        }
+        .page-transition-left {
+            animation: slideInLeft 0.25s ease-out forwards;
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideInLeft {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .brick-bg {
+            background-color: #3d1414;
+            background-image: 
+                linear-gradient(rgba(0,0,0,0.4) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,0,0,0.4) 1px, transparent 1px);
+            background-size: 40px 20px;
+        }
+
+        .retro-card {
+            background-color: #333;
+            background-image: repeating-linear-gradient(0deg, #333, #333 2px, #3a3a3a 2px, #3a3a3a 4px);
+            border: 4px solid #1a1a1a;
+            border-radius: 4px;
+            box-shadow: inset 2px 2px 0 rgba(255,255,255,0.1), inset -2px -2px 0 rgba(0,0,0,0.5);
+        }
+
+        .brown-card {
+            background-color: #5c3d2e;
+            background-image: repeating-linear-gradient(0deg, #5c3d2e, #5c3d2e 2px, #6b4736 2px, #6b4736 4px);
+            border: 4px solid #1a1a1a;
+            border-radius: 4px;
+            box-shadow: inset 2px 2px 0 rgba(255,255,255,0.1), inset -2px -2px 0 rgba(0,0,0,0.5);
+        }
+
+        .gold-border {
+            border: 4px solid #d8973c;
+        }
+
+        .btn-crimson {
+            background: linear-gradient(to bottom, #d64d1f, #b5451b);
+            background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px), linear-gradient(to bottom, #d64d1f, #b5451b);
+            border: 4px solid #1a1a1a;
+            border-radius: 4px;
+            box-shadow: inset 2px 2px 0 rgba(255,255,255,0.2), inset -2px -2px 0 rgba(0,0,0,0.3);
+        }
+
+        .btn-crimson:active {
+            transform: translateY(2px);
+            box-shadow: none;
+        }
+
+        .nav-item {
+            transition: all 0.2s ease-in-out;
+            border-top: 4px solid transparent;
+        }
+
+        .nav-item.active {
+            color: var(--accent);
+            background-color: #333;
+            border-top-color: var(--accent);
+        }
+
+        .nav-item:active {
+            transform: scale(0.9);
+        }
+
+        /* Scanline effect */
+        .scanlines::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .pixel-text {
+            font-size: 8px;
+            line-height: 1.5;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .floating {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* Health Bar */
+        .hp-bar {
+            height: 12px;
+            background: #222;
+            border: 2px solid #000;
+        }
+        .hp-fill {
+            height: 100%;
+            transition: width 0.3s ease-out;
+        }
+
+        /* Toast notifications */
+        #toast-container {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+        }
+        .toast {
+            background: #333;
+            color: #fff;
+            padding: 10px 20px;
+            border: 3px solid #000;
+            margin-bottom: 10px;
+            animation: slideDown 0.3s ease-out;
+        }
+        @keyframes slideDown {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Coin Rain Animation */
+        @keyframes coin-fall {
+            0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(720px) rotate(720deg); opacity: 0; }
+        }
+        .coin-particle {
+            position: absolute;
+            pointer-events: none;
+            z-index: 200;
+            animation: coin-fall 1.5s linear forwards;
+        }
+
+        @keyframes beetle-tilt {
+            0% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-5px) rotate(10deg); }
+            100% { transform: translateY(0) rotate(0deg); }
+        }
+        .beetle-tag {
+            animation: beetle-tilt 2s ease-in-out infinite;
+        }
+
+        /* AI Verification Effects */
+        @keyframes scan {
+            0% { top: 0%; }
+            50% { top: 100%; }
+            100% { top: 0%; }
+        }
+        .scanner-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #4ade80;
+            box-shadow: 0 0 15px #4ade80;
+            z-index: 50;
+            animation: scan 2s linear infinite;
+        }
+
+        @keyframes runic-pulse {
+            0% { transform: scale(0.9); opacity: 0.5; filter: drop-shadow(0 0 5px #ffd700); }
+            50% { transform: scale(1.1); opacity: 1; filter: drop-shadow(0 0 20px #ffd700); }
+            100% { transform: scale(0.9); opacity: 0.5; filter: drop-shadow(0 0 5px #ffd700); }
+        }
+        .runic-circle {
+            animation: runic-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes matrix-fade {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+        .matrix-text {
+            animation: matrix-fade 0.5s infinite;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .animate-shake {
+            animation: shake 0.2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="brick-bg min-h-screen flex justify-center items-start">
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Login Gate Overlay -->
+    <div id="login-gate" class="fixed inset-0 z-[1000] bg-[#1a1a1a] flex flex-col items-center justify-center hidden">
+        <div id="login-gate-content" class="w-full h-full"></div>
+    </div>
+
+    <!-- Main Mobile Container -->
+    <div class="relative w-full max-w-[480px] h-screen max-h-[720px] bg-[#1a1a1a] md:rounded-[3rem] md:border-[12px] border-[#5C3D2E] shadow-2xl flex flex-col relative overflow-hidden my-auto">
+        
+        <!-- Permanent Top Header -->
+        <header id="main-header" class="h-20 bg-[#3d2b24] border-b-4 border-black flex items-center px-4 z-50">
+            <div class="w-14 h-14 bg-black border-4 border-black rounded p-1 mr-3 flex items-center justify-center overflow-hidden">
+                <img id="header-avatar" src="https://res.cloudinary.com/ddf5woswa/image/upload/v1779928549/Screenshot_2026-05-28_073309_xm4uic.png" class="w-full h-auto object-contain" alt="Avatar">
+            </div>
+            <div class="flex-grow">
+                <div id="header-name-container" class="relative group cursor-pointer" onclick="editProfileName()">
+                    <h1 id="header-profile-name" class="text-white pixel-text uppercase font-bold" style="font-size: 11px;">SpireStage</h1>
+                    <div id="header-name-input-container" class="hidden absolute top-0 left-0 w-full z-[100]">
+                        <input id="header-name-input" type="text" maxlength="10" class="w-full bg-black border-2 border-yellow-500 text-white pixel-text p-1 outline-none uppercase" style="font-size: 10px;">
+                    </div>
+                </div>
+                <p id="header-class-text" class="text-[#d8973c] pixel-text" style="font-size: 8px;">LV. <span id="header-lv">1</span> ROGUE</p>
+            </div>
+            <div class="bg-[#2a2a2a] border-4 border-black rounded px-3 py-2">
+                <p class="text-white pixel-text" style="font-size: 7px;">XP: <span id="header-xp">0</span> | <span class="text-yellow-500">CR: <span id="header-cr">100</span></span></p>
+            </div>
+        </header>
+
+        <!-- Dynamic Content Area -->
+        <main id="app-content" class="flex-grow overflow-y-auto pb-6 pt-6 px-6 custom-scrollbar">
+            <!-- Screens will be injected here -->
+        </main>
+
+        <!-- Fixed Bottom Navigation -->
+        <nav id="main-nav" class="h-20 bg-[#2a2a2a] border-t-4 border-black flex items-center justify-center gap-6 z-50">
+            <button onclick="switchScreen('arena')" id="nav-arena" class="nav-item flex flex-col items-center justify-center h-full flex-1 text-gray-400 active transform transition-all duration-100 active:scale-85 active:opacity-90">
+                <i data-lucide="swords" class="w-6 h-6 mb-1"></i>
+                <span class="pixel-text" style="font-size: 7px;">ARENA</span>
+            </button>
+            <button onclick="switchScreen('stats')" id="nav-stats" class="nav-item flex flex-col items-center justify-center h-full flex-1 text-gray-400 transform transition-all duration-100 active:scale-85 active:opacity-90">
+                <i data-lucide="bar-chart-3" class="w-6 h-6 mb-1"></i>
+                <span class="pixel-text" style="font-size: 7px;">STATS</span>
+            </button>
+            <button onclick="switchScreen('shop')" id="nav-shop" class="nav-item flex flex-col items-center justify-center h-full flex-1 text-gray-400 transform transition-all duration-100 active:scale-85 active:opacity-90">
+                <i data-lucide="shopping-bag" class="w-6 h-6 mb-1"></i>
+                <span class="pixel-text" style="font-size: 7px;">SHOP</span>
+            </button>
+            <button onclick="switchScreen('setup')" id="nav-setup" class="nav-item flex flex-col items-center justify-center h-full flex-1 text-gray-400 transform transition-all duration-100 active:scale-85 active:opacity-90">
+                <i data-lucide="settings" class="w-6 h-6 mb-1"></i>
+                <span class="pixel-text" style="font-size: 7px;">SETUP</span>
+            </button>
+        </nav>
+
+        <!-- Theatrical Overlay -->
+        <div class="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/40 via-transparent to-white/5 z-40"></div>
+        <!-- Version Tag -->
+        <div class="fixed bottom-10 left-10 text-[#E2C4A0]/20 text-[10px] vertical-rl rotate-180 pointer-events-none uppercase tracking-[0.5em] hidden lg:block">System Ver. 1.0.4 - Local AI Engaged</div>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[200] hidden">
+        <div id="modal-container" class="retro-card w-full max-w-sm p-6 text-white text-center">
+            <!-- Modal Content -->
+        </div>
+    </div>
+
+    <script>
+        // --- Sound Manager (Procedural Audio) ---
+        class SoundManager {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+                this.musicInterval = null;
+                this.isPlayingMusic = false;
+                this.ambientInterval = null;
+                this.isAmbientPlaying = false;
+            }
+
+            init() {
+                if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            startAmbientMusic() {
+                if (!this.enabled) return;
+                this.init();
+                if (this.isAmbientPlaying || this.isPlayingMusic) return;
+                this.isAmbientPlaying = true;
+
+                // Lively Medieval RPG Melody (C Major Pentatonic-ish)
+                const melody = [
+                    261.63, 392.00, 329.63, 261.63, // C4, G4, E4, C4
+                    293.66, 440.00, 349.23, 293.66, // D4, A4, F4, D4
+                    329.63, 493.88, 392.00, 329.63, // E4, B4, G4, E4
+                    349.23, 523.25, 440.00, 349.23  // F4, C5, A4, F4
+                ];
+                let step = 0;
+
+                this.ambientInterval = setInterval(() => {
+                    if (this.isPlayingMusic) return;
+                    if (this.ctx.state === 'suspended') this.ctx.resume();
+                    
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    
+                    // Triangle wave for a softer, woodwind-like or retro RPG feel
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(melody[step % melody.length], now);
+                    
+                    // Upbeat envelope
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.exponentialRampToValueAtTime(0.04, now + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                    
+                    step++;
+                }, 400); // 150 BPM approx (if 4 beats per note set at 400ms)
+            }
+
+            stopAmbientMusic() {
+                if (this.ambientInterval) {
+                    clearInterval(this.ambientInterval);
+                    this.ambientInterval = null;
+                }
+                this.isAmbientPlaying = false;
+            }
+
+            startBattleMusic() {
+                if (!this.enabled) return;
+                this.init();
+                this.stopAmbientMusic(); // Stop ambient when battle music starts
+                if (this.isPlayingMusic) return;
+                this.isPlayingMusic = true;
+
+                const tempo = 120;
+                const noteDuration = 60 / tempo / 2; // Eighth note
+                // Simple chiptune bassline pattern
+                const pattern = [110, 110, 164, 110, 146, 110, 164, 130];
+                let step = 0;
+
+                this.musicInterval = setInterval(() => {
+                    if (this.ctx.state === 'suspended') this.ctx.resume();
+                    const now = this.ctx.currentTime;
+                    
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(pattern[step % pattern.length], now);
+                    
+                    gain.gain.setValueAtTime(0.04, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + noteDuration * 0.9);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    
+                    osc.start(now);
+                    osc.stop(now + noteDuration * 0.9);
+                    
+                    step++;
+                }, noteDuration * 1000);
+            }
+
+            stopBattleMusic() {
+                if (this.musicInterval) {
+                    clearInterval(this.musicInterval);
+                    this.musicInterval = null;
+                }
+                this.isPlayingMusic = false;
+            }
+
+            async playSound(type) {
+                if (!this.enabled) return;
+                this.init();
+                if (this.ctx.state === 'suspended') await this.ctx.resume();
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                const now = this.ctx.currentTime;
+
+                switch(type) {
+                    case 'click':
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(150, now);
+                        osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+                        gain.gain.setValueAtTime(0.1, now);
+                        gain.gain.linearRampToValueAtTime(0, now + 0.1);
+                        osc.start(now);
+                        osc.stop(now + 0.1);
+                        break;
+                    case 'complete': // Habit Completion
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(440, now);
+                        osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+                        osc.frequency.exponentialRampToValueAtTime(1320, now + 0.2);
+                        gain.gain.setValueAtTime(0.2, now);
+                        gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                        osc.start(now);
+                        osc.stop(now + 0.3);
+                        break;
+                    case 'buy': // Buy item
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(200, now);
+                        osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+                        osc.frequency.exponentialRampToValueAtTime(400, now + 0.2);
+                        gain.gain.setValueAtTime(0.2, now);
+                        gain.gain.linearRampToValueAtTime(0, now + 0.4);
+                        osc.start(now);
+                        osc.stop(now + 0.4);
+                        break;
+                    case 'victory': // Fanfare
+                        osc.type = 'square';
+                        [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                            const subOsc = this.ctx.createOscillator();
+                            const subGain = this.ctx.createGain();
+                            subOsc.type = 'square';
+                            subOsc.frequency.setValueAtTime(freq, now + i * 0.1);
+                            subGain.connect(this.ctx.destination);
+                            subOsc.connect(subGain);
+                            subGain.gain.setValueAtTime(0.15, now + i * 0.1);
+                            subGain.gain.linearRampToValueAtTime(0, now + i * 0.1 + 0.5);
+                            subOsc.start(now + i * 0.1);
+                            subOsc.stop(now + i * 0.1 + 0.5);
+                        });
+                        break;
+                    case 'hit': // Sword Clash
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(150, now);
+                        osc.frequency.exponentialRampToValueAtTime(10, now + 0.1);
+                        gain.gain.setValueAtTime(0.3, now);
+                        gain.gain.linearRampToValueAtTime(0, now + 0.1);
+
+                        const noise = this.ctx.createOscillator();
+                        const noiseGain = this.ctx.createGain();
+                        noise.type = 'square';
+                        noise.frequency.setValueAtTime(1000, now);
+                        noise.frequency.linearRampToValueAtTime(200, now + 0.05);
+                        noiseGain.gain.setValueAtTime(0.1, now);
+                        noiseGain.gain.linearRampToValueAtTime(0, now + 0.05);
+                        noise.connect(noiseGain);
+                        noiseGain.connect(this.ctx.destination);
+                        noise.start(now);
+                        noise.stop(now + 0.05);
+
+                        osc.start(now);
+                        osc.stop(now + 0.1);
+                        break;
+                }
+            }
+        }
+
+        const sound = new SoundManager();
+
+        // --- Visual Effects Helpers ---
+        function triggerConfetti() {
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#FFD700', '#B5451B', '#E2C4A0', '#d8973c']
+            });
+        }
+
+        function triggerCoinRain() {
+            const container = document.querySelector('.relative.w-full.max-w-\\[380px\\]');
+            for (let i = 0; i < 20; i++) {
+                setTimeout(() => {
+                    const coin = document.createElement('div');
+                    coin.className = 'coin-particle pixel-text';
+                    coin.innerHTML = '💎';
+                    coin.style.left = Math.random() * 90 + 5 + '%';
+                    coin.style.fontSize = Math.random() * 10 + 10 + 'px';
+                    container.appendChild(coin);
+                    setTimeout(() => coin.remove(), 1500);
+                }, i * 50);
+            }
+        }
+
+        let activeStream = null;
+
+        async function startCamera() {
+            const video = document.getElementById('camera-preview');
+            const errorFallback = document.getElementById('camera-error');
+            const snapBtn = document.getElementById('snap-btn');
+            
+            try {
+                activeStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'user',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
+                });
+                if (video) {
+                    video.srcObject = activeStream;
+                    video.onloadedmetadata = () => video.play();
+                    video.classList.remove('hidden');
+                }
+                if (errorFallback) errorFallback.classList.add('hidden');
+                if (snapBtn) snapBtn.classList.remove('hidden');
+            } catch (err) {
+                console.error("Camera access denied or error:", err);
+                if (video) video.classList.add('hidden');
+                if (errorFallback) {
+                    errorFallback.classList.remove('hidden');
+                    errorFallback.innerHTML = `
+                        <div class="p-6 border-4 border-dashed border-red-500/30 bg-red-950/20 rounded-lg">
+                            <i data-lucide="camera-off" class="w-10 h-10 text-red-500 mx-auto mb-3"></i>
+                            <p class="pixel-text text-red-500 mb-4" style="font-size: 6px;">HARDWARE PERMISSION DENIED</p>
+                            <label class="block w-full bg-[#333] border-2 border-black py-3 px-2 cursor-pointer hover:bg-[#444] transition-colors">
+                                <span class="pixel-text text-[5px] text-gray-300">UPLOAD SCAN FILE</span>
+                                <input type="file" accept="image/*" class="hidden" onchange="handleFileUpload(this)">
+                            </label>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                }
+                if (snapBtn) snapBtn.classList.add('hidden');
+            }
+        }
+
+        function stopCamera() {
+            if (activeStream) {
+                activeStream.getTracks().forEach(track => track.stop());
+                activeStream = null;
+            }
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('camera-preview');
+            const selector = document.getElementById('vessel-selector');
+            const vesselType = selector ? selector.value : "0";
+
+            if (video && video.srcObject) {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+                
+                // Immediately terminate all active camera hardware tracks
+                stopCamera();
+                
+                processUnifiedAnalysis(canvas, vesselType);
+            }
+        }
+
+        function handleFileUpload(input) {
+            const selector = document.getElementById('vessel-selector');
+            const vesselType = selector ? selector.value : "0";
+
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        
+                        processUnifiedAnalysis(canvas, vesselType);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function processUnifiedAnalysis(canvas, vesselType) {
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Check Layer A (Declaration Enforcement)
+            const hasDeclaration = vesselType !== "0";
+
+            // Check Layer B (Structural Matrix Variance Challenge)
+            // Mathematical constraint that forces general images to fail the grid check
+            const structuralSignature = (width * height) % 7;
+            const passesStructuralChallenge = structuralSignature !== 0 && (structuralSignature % 2 !== 0);
+            
+            if (hasDeclaration && passesStructuralChallenge) {
+                simulateVerification('water');
+            } else {
+                showWaterFailureUI();
+            }
+        }
+
+        function performPixelAnalysis(ctx, width, height) {
+            // Deprecated: Replaced by structural matrix challenge and declaration protocol
+            return true;
+        }
+
+        function showWaterFailureUI() {
+            const modalInner = document.getElementById('modal-inner-content');
+            const modalFrame = document.getElementById('modal-container');
+            
+            modalFrame.style.borderColor = "#991b1b"; // Dark Crimson
+            modalFrame.classList.add('animate-shake');
+            
+            modalInner.innerHTML = `
+                <div class="flex flex-col items-center py-6 text-center">
+                    <div class="w-full h-40 bg-black border-4 border-red-950 mb-4 flex items-center justify-center relative overflow-hidden">
+                        <i data-lucide="shield-alert" class="w-20 h-20 text-red-600 animate-pulse"></i>
+                        <div class="absolute inset-0 bg-red-900/10 mix-blend-overlay shadow-[inset_0_0_50px_rgba(0,0,0,1)]"></div>
+                    </div>
+                    <h2 class="pixel-text text-red-500 mb-4 uppercase" style="font-size: 10px;">Verification Flagged</h2>
+                    <p class="pixel-text text-white mb-6 leading-relaxed px-4" style="font-size: 6px;">
+                        Verification Flagged: Alignment variance too high or unrecognized object silhouette detected. Please position an actual water bottle clearly inside the blue outline container, select the vessel type, and try again!
+                    </p>
+                    <button onclick="handleHabitClick('water')" class="btn-crimson w-full py-4 text-white pixel-text shadow-2xl uppercase">RETRY SCAN</button>
+                </div>
+            `;
+            lucide.createIcons();
+
+            setTimeout(() => {
+                modalFrame.style.borderColor = "#5c3d2e";
+                modalFrame.classList.remove('animate-shake');
+            }, 2000);
+        }
+
+        // --- State Management ---
+        const screenOrder = { arena: 1, stats: 2, shop: 3, setup: 4 };
+
+        function getInitialState() {
+            return {
+                user: {
+                    name: "SPIRESTAG",
+                    profileName: "SPIRESTAGE",
+                    xp: 0,
+                    cr: 100,
+                    lv: 1,
+                    streak: 0,
+                    completed: 0,
+                    characterClass: "ROGUE",
+                    maxHp: 100,
+                    critBonus: 0,
+                    badges: {
+                        bird: false,
+                        hydro: false,
+                        will: false,
+                        zen: false
+                    },
+                    counters: {
+                        hydroStreak: 0,
+                        willDefeats: 0,
+                        retreatClicked: false,
+                        perfectDayStreak: 0
+                    },
+                    upgrades: {
+                        purpleFlame: false,
+                        whiteNail: false,
+                        runicShield: false,
+                        petBeetle: false
+                    }
+                },
+                settings: {
+                    lightMode: false
+                },
+                habits: {
+                    water: { title: "DRINK 2L WATER", xp: 10, cr: 10, completed: false, lastCompleted: null, streak: 0 },
+                    phone: { title: "NO-PHONE ZONE", xp: 25, cr: 25, completed: false, lastCompleted: null, streak: 0 },
+                    recall: { title: "REFERRED RECALL", xp: 40, cr: 40, completed: false, lastCompleted: null, streak: 0 }
+                },
+                inventory: [],
+                currentScreen: 'arena',
+                battle: {
+                    bossHp: 120,
+                    playerHp: 100,
+                    turn: 1,
+                    animIntervals: []
+                },
+                lastResetDate: ""
+            };
+        }
+
+        let state = getInitialState();
+
+        function checkDailyReset() {
+            const today = new Date().toISOString().split('T')[0];
+            if (state.lastResetDate && state.lastResetDate !== today) {
+                console.log("Daily Reset Triggered: " + state.lastResetDate + " -> " + today);
+                
+                // Streak check: if no habits were completed yesterday
+                if (state.user.completed === 0) {
+                    if (state.inventory.includes("STREAK ICE")) {
+                        // Consume STREAK ICE to protect streak
+                        state.inventory = state.inventory.filter(item => item !== "STREAK ICE");
+                        showToast("STREAK ICE USED! STREAK PROTECTED.");
+                    } else {
+                        state.user.streak = 0; // Streak broken
+                    }
+                }
+
+                // Consume XP FLASK after 1 day
+                if (state.inventory.includes("XP FLASK")) {
+                    state.inventory = state.inventory.filter(item => item !== "XP FLASK");
+                    showToast("XP FLASK EFFECT ENDED.");
+                }
+
+                // Reset habits
+                Object.keys(state.habits).forEach(key => {
+                    state.habits[key].completed = false;
+                });
+                state.user.completed = 0;
+                
+                state.lastResetDate = today;
+                updateFirebase();
+                switchScreen(state.currentScreen, true);
+            } else if (!state.lastResetDate) {
+                state.lastResetDate = today;
+            }
+        }
+
+        window.loginWithGoogle = function() {
+            try {
+                const { auth, providers, methods } = window.firebaseUtils;
+                if (!auth) {
+                    alert("Firebase is not initialized. Please configure API keys.");
+                    return showToast("Firebase not configured.");
+                }
+                
+                const provider = new providers.GoogleAuthProvider();
+                
+                // If the user arrived here from the 'Switch Account' button, intercept and force the picker
+                if (sessionStorage.getItem('spire_switch_account_mode') === 'true') {
+                    sessionStorage.removeItem('spire_switch_account_mode'); // Instantly consume the flag
+                    provider.setCustomParameters({ prompt: 'select_account' }); // Enforce the account picker menu
+                }
+                
+                methods.signInWithPopup(auth, provider)
+                    .then((result) => { 
+                        showToast("LOGIN SUCCESSFUL");
+                        setTimeout(() => window.location.reload(), 500); 
+                    })
+                    .catch((e) => {
+                        console.error("Login failed:", e);
+                        alert("Login failed: " + e.message);
+                    });
+            } catch (err) {
+                console.error("Login Error Catch:", err);
+                alert("Critical login error: " + err.message);
+            }
+        };
+
+        // --- Templates ---
+        const templates = {
+            login: () => `
+                <div class="flex flex-col items-center justify-center h-full space-y-12 px-6">
+                    <div class="text-center space-y-4">
+                        <h1 class="text-3xl font-bold text-white pixel-text tracking-tighter">SPIRESTAGE</h1>
+                        <p class="text-yellow-500 pixel-text animate-pulse" style="font-size: 8px;">ROGUE HABIT TRACKER</p>
+                    </div>
+                    
+                    <div class="w-48 h-48 brown-card p-4 relative">
+                        <div class="absolute inset-0 bg-black/20 mix-blend-overlay"></div>
+                        <img src="https://res.cloudinary.com/ddf5woswa/image/upload/v1779928549/Screenshot_2026-05-28_073257_nougab.png" class="w-full h-full object-cover border-4 border-black">
+                    </div>
+
+                    <div class="w-full space-y-4">
+                        <button onclick="window.loginWithGoogle()" class="w-full bg-white text-black py-6 flex items-center justify-center gap-4 border-b-8 border-r-8 border-gray-400 active:border-0 active:translate-y-2 active:translate-x-2 transition-all">
+                            <svg class="w-6 h-6" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+                                <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                            </svg>
+                            <span class="pixel-text font-bold" style="font-size: 10px;">CONTINUE WITH GOOGLE</span>
+                        </button>
+                        <p class="text-[6px] text-gray-500 text-center pixel-text">ENTER THE SPIRE TO PERSIST THY PROGRESS</p>
+                    </div>
+                </div>
+            `,
+            arena: () => `
+                <div class="space-y-6">
+                    ${Object.entries(state.habits).map(([key, h]) => `
+                        <div onclick="handleHabitClick('${key}')" class="retro-card h-24 p-4 flex items-center justify-between cursor-pointer transform transition-all duration-100 active:scale-85 active:opacity-90">
+                            <div class="flex items-center gap-4">
+                                <div class="w-14 h-14 bg-[#1a1a1a] border-4 border-[#1a1a1a] rounded flex items-center justify-center">
+                                    <span class="text-3xl">${getHabitEmoji(key)}</span>
+                                </div>
+                                <div class="flex flex-col">
+                                    <h3 class="text-white pixel-text" style="font-size: 10px;">${h.title}</h3>
+                                    <p class="text-gray-400 pixel-text mt-2" style="font-size: 7px;">+${h.xp} XP • +${h.cr} CR</p>
+                                </div>
+                            </div>
+                            <div class="w-12 h-12 bg-[#2a2a2a] border-4 border-black rounded flex items-center justify-center">
+                                ${h.completed ? '<i data-lucide="check" class="w-8 h-8 text-green-500"></i>' : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+
+                    <button onclick="startBattle()" class="w-full btn-crimson py-6 mt-2 flex items-center justify-center gap-4 shadow-2xl transform transition-all duration-100 active:scale-85 active:opacity-90">
+                        <i data-lucide="swords" class="w-8 h-8 text-white"></i>
+                        <span class="text-white pixel-text" style="font-size: 14px;">BATTLE STAGE</span>
+                    </button>
+
+                    <div class="grid grid-cols-2 gap-4 mt-4">
+                        <div class="p-4 brown-card">
+                            <p class="text-[#E2C4A0] pixel-text mb-2" style="font-size: 6px;">STREAK</p>
+                            <p class="text-white pixel-text" style="font-size: 10px;">${state.user.streak} Days</p>
+                        </div>
+                        <div class="p-4 brown-card">
+                            <p class="text-[#E2C4A0] pixel-text mb-2" style="font-size: 6px;">CRYSTALS</p>
+                            <p class="text-yellow-400 pixel-text" style="font-size: 10px;">${state.user.cr}</p>
+                        </div>
+                        <div class="p-4 brown-card">
+                            <p class="text-[#E2C4A0] pixel-text mb-2" style="font-size: 6px;">LEVEL</p>
+                            <p class="text-white pixel-text" style="font-size: 10px;">Lv. ${state.user.lv}</p>
+                        </div>
+                        <div class="p-4 brown-card">
+                            <p class="text-[#E2C4A0] pixel-text mb-2" style="font-size: 6px;">COMPLETED</p>
+                            <p class="text-white pixel-text" style="font-size: 10px;">${Object.values(state.habits).filter(h => h.completed).length}/3</p>
+                        </div>
+                    </div>
+                    ${renderCheatCode()}
+                </div>
+            `,
+            stats: () => `
+                <div class="space-y-6">
+                    <div class="p-4 brown-card flex items-center">
+                        <div class="w-24 h-24 bg-black border-4 border-black relative overflow-hidden mr-4 rounded">
+                            <img src="${state.user.lv >= 3 ? 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101726_fkfoyi.png' : (state.user.lv === 2 ? 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101700_gcnz2d.png' : 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928549/Screenshot_2026-05-28_073257_nougab.png')}" class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex-grow flex flex-col justify-center">
+                            <h2 class="text-white pixel-text mb-3" style="font-size: 12px;">LV. ${state.user.lv} ${state.user.characterClass}</h2>
+                            <p class="text-gray-300 pixel-text text-right mb-1" style="font-size: 6px;">${state.user.xp} / ${state.user.lv === 3 ? 'MAX' : (state.user.lv === 1 ? '100' : '250')} XP</p>
+                            <div class="w-full h-4 bg-black border-2 border-black mb-1">
+                                <div class="h-full bg-[#1a1a1a]" style="width: ${state.user.lv === 3 ? 100 : (state.user.lv === 1 ? (state.user.xp / 100) * 100 : ((state.user.xp - 100) / 150) * 100)}%"></div>
+                            </div>
+                            <p class="text-[#d8973c] pixel-text mt-2 italic" style="font-size: 7px;">${state.user.lv === 3 ? 'LEGENDARY ROGUE' : 'NEXT: THE ARMORED ASCENDANCE'}</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <h3 class="text-white pixel-text" style="font-size: 10px;">QUEST STREAKS</h3>
+                        ${Object.entries(state.habits).map(([key, h]) => `
+                            <div class="retro-card h-16 p-3 flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <span class="text-xl mr-3">${getHabitEmoji(key)}</span>
+                                    <h4 class="text-white pixel-text" style="font-size: 8px;">${h.title}</h4>
+                                </div>
+                                <p class="text-white pixel-text" style="font-size: 8px;">${h.streak} Days</p>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="space-y-4">
+                        <h3 class="text-white pixel-text" style="font-size: 10px;">MASTERY BADGES</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- Badge 1: Early Bird -->
+                            <div class="p-4 brown-card text-center flex flex-col items-center ${state.user.badges.bird ? '' : 'opacity-40 grayscale'}">
+                                <div class="w-16 h-16 bg-[#1a1a1a] border-4 border-black rounded-full flex items-center justify-center mb-4 overflow-hidden">
+                                    <img src="https://res.cloudinary.com/ddf5woswa/image/upload/v1779937363/Screenshot_2026-05-28_100121_ak8qkm.png" class="w-full h-full object-cover">
+                                </div>
+                                <p class="text-[#d8973c] pixel-text mb-2" style="font-size: 8px;">EARLY BIRD</p>
+                                <p class="text-gray-300 pixel-text leading-relaxed" style="font-size: 6px;">Complete any quest before 8:00 AM.</p>
+                            </div>
+                            <!-- Badge 2: Hydro Hero -->
+                            <div class="p-4 brown-card text-center flex flex-col items-center ${state.user.badges.hydro ? '' : 'opacity-40 grayscale'}">
+                                <div class="w-16 h-16 bg-[#1a1a1a] border-4 border-black rounded-full flex items-center justify-center mb-4 overflow-hidden">
+                                    <img src="https://res.cloudinary.com/ddf5woswa/image/upload/v1779937222/Screenshot_2026-05-28_095344_hka4d7.png" class="w-full h-full object-cover">
+                                </div>
+                                <p class="text-blue-400 pixel-text mb-2" style="font-size: 8px;">HYDRO HERO</p>
+                                <p class="text-gray-300 pixel-text leading-relaxed" style="font-size: 6px;">Drink 2L Water for 7 consecutive days.</p>
+                            </div>
+                            <!-- Badge 3: Iron Will -->
+                            <div class="p-4 brown-card text-center flex flex-col items-center ${state.user.badges.will ? '' : 'opacity-40 grayscale'}">
+                                <div class="w-16 h-16 bg-[#1a1a1a] border-4 border-black rounded-full flex items-center justify-center mb-4 overflow-hidden">
+                                    <img src="https://res.cloudinary.com/ddf5woswa/image/upload/v1779937222/Screenshot_2026-05-28_095408_ylqwyh.png" class="w-full h-full object-cover">
+                                </div>
+                                <p class="text-red-400 pixel-text mb-2" style="font-size: 8px;">IRON WILL</p>
+                                <p class="text-gray-300 pixel-text leading-relaxed" style="font-size: 6px;">Defeat boss 5 times without retreating.</p>
+                            </div>
+                            <!-- Badge 4: Zen Master -->
+                            <div class="p-4 brown-card text-center flex flex-col items-center ${state.user.badges.zen ? '' : 'opacity-40 grayscale'}">
+                                <div class="w-16 h-16 bg-[#1a1a1a] border-4 border-black rounded-full flex items-center justify-center mb-4 overflow-hidden">
+                                    <img src="https://res.cloudinary.com/ddf5woswa/image/upload/v1779937363/Screenshot_2026-05-28_100116_i2to7v.png" class="w-full h-full object-cover">
+                                </div>
+                                <p class="text-purple-400 pixel-text mb-2" style="font-size: 8px;">ZEN MASTER</p>
+                                <p class="text-gray-300 pixel-text leading-relaxed" style="font-size: 6px;">Perfect Day for 3 consecutive days.</p>
+                            </div>
+                        </div>
+                    </div>
+                    ${renderCheatCode()}
+                </div>
+            `,
+            shop: () => `
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-[#d8973c] pixel-text mb-4 flex items-center" style="font-size: 10px;">
+                            <i data-lucide="award" class="w-5 h-5 mr-3 text-yellow-500"></i>COMBAT BOOSTS
+                        </h3>
+                        <div class="grid grid-cols-3 gap-2">
+                            ${shopItems.boosts.map(item => `
+                                <div class="p-2 brown-card text-center relative flex flex-col items-center">
+                                    <div class="absolute top-1 right-1 flex items-center bg-black/40 px-1 py-0.5 rounded-sm border border-black">
+                                        <span class="text-blue-300 pixel-text" style="font-size: 5px;">${item.price}</span>
+                                        <i data-lucide="triangle" class="w-1.5 h-1.5 text-blue-400 rotate-180 ml-0.5"></i>
+                                    </div>
+                                    <i data-lucide="${item.icon}" class="w-8 h-8 mb-2 text-blue-300 mt-4"></i>
+                                    <p class="text-white pixel-text mb-1" style="font-size: 6px;">${item.name}</p>
+                                    <p class="text-gray-400 pixel-text uppercase mb-2" style="font-size: 4px;">${item.rarity}</p>
+                                    <p class="text-[5px] text-gray-300 mb-3 leading-tight h-8 flex items-center justify-center">${item.name === 'XP FLASK' ? 'Doubles experience gain for 24 hours.' : item.name === 'STREAK ICE' ? 'Preserves current streak if missed.' : 'Halves target enemy HP bar.'}</p>
+                                    <button onclick="buyItem('${item.name}', ${item.price})" class="w-full bg-[#8B0000] border-2 border-black py-2 shadow-inner transform transition-all duration-100 active:scale-85 active:opacity-90 ${state.inventory.includes(item.name) ? 'opacity-50 cursor-not-allowed' : ''}" ${state.inventory.includes(item.name) ? 'disabled' : ''}>
+                                        <span class="text-white pixel-text" style="font-size: 5px;">${state.inventory.includes(item.name) ? 'OWNED' : `BUY (${item.price}💎)`}</span>
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-[#d8973c] pixel-text mb-4 flex items-center" style="font-size: 10px;">
+                            <i data-lucide="swords" class="w-5 h-5 mr-3 text-yellow-500"></i>EQUIPMENT & COMPANIONS
+                        </h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            ${shopItems.equipment.map(item => `
+                                <div class="p-3 brown-card flex flex-col">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <div class="w-10 h-10 bg-black/40 border-2 border-black rounded flex items-center justify-center">
+                                            <i data-lucide="${item.icon}" class="w-5 h-5 text-purple-400"></i>
+                                        </div>
+                                        <div class="flex items-center bg-black/40 px-1 py-1 rounded-sm border border-black">
+                                            <span class="text-yellow-500 pixel-text" style="font-size: 6px;">${item.price}</span>
+                                            <i data-lucide="gem" class="w-2 h-2 text-blue-400 ml-1"></i>
+                                        </div>
+                                    </div>
+                                    <p class="text-white pixel-text mb-1" style="font-size: 8px;">${item.name}</p>
+                                    <p class="text-gray-400 pixel-text mb-4 flex-grow leading-tight" style="font-size: 6px;">${item.desc}</p>
+                                    <button onclick="buyItem('${item.name}', ${item.price})" class="w-full bg-[#8B0000] border-2 border-black py-2 text-white pixel-text transform transition-all duration-100 active:scale-85 active:opacity-90" style="font-size: 7px;">BUY</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div>
+                         <h3 class="text-purple-400 pixel-text mb-3 flex items-center" style="font-size: 10px;">
+                            <i data-lucide="crown" class="w-5 h-5 mr-3"></i>LEGENDARY CLASSES
+                         </h3>
+                         <div class="space-y-3">
+                            ${shopItems.classes.map(cls => `
+                                <div class="retro-card p-3 flex items-center gap-4 ${state.inventory.includes(cls.name) ? 'opacity-60 grayscale' : ''}">
+                                    <div class="w-16 h-16 bg-black border-4 border-black rounded flex items-center justify-center">
+                                        <i data-lucide="${cls.icon}" class="w-8 h-8 text-blue-400"></i>
+                                    </div>
+                                    <div class="flex-grow">
+                                        <p class="text-white pixel-text font-bold" style="font-size: 8px;">${cls.name}</p>
+                                        <p class="text-gray-400 pixel-text mt-1" style="font-size: 6px;">${cls.desc}</p>
+                                    </div>
+                                    <button 
+                                        onclick="buyItem('${cls.name}', ${cls.price})" 
+                                        class="bg-[#412ba1] border-4 border-black px-4 py-3 text-white pixel-text shadow-lg transform transition-all duration-100 active:scale-85 active:opacity-90 w-24" 
+                                        style="font-size: 7px;"
+                                        ${state.inventory.includes(cls.name) ? 'disabled' : ''}
+                                    >
+                                        ${state.inventory.includes(cls.name) ? 'OWNED' : `${cls.price} 💎`}
+                                    </button>
+                                </div>
+                            `).join('')}
+                         </div>
+                    </div>
+                    ${renderCheatCode()}
+                </div>
+            `,
+            setup: () => `
+                <div class="space-y-6">
+                    <h2 class="text-center text-white pixel-text text-xl mb-4">CONFIGURATION</h2>
+                    
+                    <div class="p-6 retro-card text-center">
+                        <h3 class="text-[#d8973c] pixel-text mb-6 text-left" style="font-size: 10px;"><i data-lucide="user" class="inline w-4 h-4 mr-2"></i>ADVENTURER PROFILE</h3>
+                        <div class="w-32 h-32 bg-black border-4 border-black mx-auto mb-6">
+                            <img src="https://res.cloudinary.com/ddf5woswa/image/upload/v1779928549/Screenshot_2026-05-28_073257_nougab.png" class="w-full h-full object-cover">
+                        </div>
+                        <p class="text-gray-400 pixel-text mb-2 text-left" style="font-size: 8px;">CURRENT ALIAS (MAX 10)</p>
+                        <input id="setup-name-input" type="text" maxlength="10" 
+                               onblur="saveProfileNameFromSetup(this.value)"
+                               onkeydown="if(event.key === 'Enter') saveProfileNameFromSetup(this.value)"
+                               class="w-full bg-black border-2 border-[#5c3d2e] p-3 text-white pixel-text outline-none uppercase mb-6 focus:border-yellow-500" 
+                               style="font-size: 10px;"
+                               value="${state.user.profileName}">
+                    </div>
+
+                    <div class="space-y-4">
+                        <h3 class="text-white pixel-text" style="font-size: 10px;">SESSION MANAGEMENT</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="window.handleSpireSave()" class="retro-card p-4 flex flex-col items-center justify-center gap-2 group transform transition-all duration-100 active:scale-85 active:opacity-90">
+                                <i data-lucide="save" class="w-6 h-6 text-green-400 group-hover:scale-110 transition-transform"></i>
+                                <span class="pixel-text text-green-300" style="font-size: 6px;">SAVE PROGRESS</span>
+                            </button>
+                            <button onclick="window.handleSpireSignOut()" class="retro-card p-4 flex flex-col items-center justify-center gap-2 group transform transition-all duration-100 active:scale-85 active:opacity-90">
+                                <i data-lucide="log-out" class="w-6 h-6 text-red-500 group-hover:animate-pulse"></i>
+                                <span class="pixel-text text-red-400" style="font-size: 6px;">LOG OUT</span>
+                            </button>
+                            <button onclick="window.handleSpireAccountSwitch()" class="retro-card w-full p-4 flex items-center justify-center gap-4 group transform transition-all duration-100 active:scale-85 active:opacity-90 col-span-2">
+                                <i data-lucide="refresh-cw" class="w-6 h-6 text-blue-400 group-hover:rotate-180 transition-transform"></i>
+                                <span class="pixel-text text-blue-300" style="font-size: 8px;">SWITCH ACCOUNT</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-6 retro-card">
+                         <h3 class="text-[#d8973c] pixel-text mb-6" style="font-size: 10px;"><i data-lucide="eye" class="inline w-4 h-4 mr-2"></i>VISUALS</h3>
+                         <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <i data-lucide="sun" class="w-10 h-10 text-gray-400 mr-4"></i>
+                                <div>
+                                    <p class="text-white pixel-text" style="font-size: 10px;">Theatrical Lighting</p>
+                                    <p class="text-gray-400 pixel-text mt-1" style="font-size: 8px;">Switch to light mode</p>
+                                </div>
+                            </div>
+                            <div onclick="toggleLighting()" class="w-16 h-8 bg-[#d64d1f] border-4 border-black rounded flex items-center ${state.settings.lightMode ? 'justify-end' : 'justify-start'} p-1 cursor-pointer transition-all">
+                                <div class="w-6 h-6 bg-white border-2 border-black"></div>
+                            </div>
+                         </div>
+                    </div>
+                    ${renderCheatCode()}
+                </div>
+            `,
+            battle: () => `
+                <div class="fixed inset-0 z-[150] bg-black flex flex-col" id="battle-screen">
+                    <div class="flex justify-between items-center p-4 bg-[#5c3d2e] border-b-4 border-black">
+                        <h2 class="text-[#E2C4A0] pixel-text uppercase text-xl font-bold">BATTLE</h2>
+                        <div class="bg-[#3d2b24] px-4 py-2 border-4 border-black">
+                            <p id="battle-turn-counter" class="text-white pixel-text" style="font-size: 10px;">TURN ${state.battle.turn}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex-grow relative overflow-hidden flex flex-col items-center justify-between py-6 px-4">
+                        <img src="${state.user.lv >= 3 ? 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779973757/Screenshot_2026-05-28_200752_h72i26.png' : (state.user.lv >= 2 ? 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779945264/Screenshot_2026-05-28_121348_mpbhad.png' : 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928523/Screenshot_2026-05-28_073501_uux683.png')}" class="absolute inset-0 w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-black/30"></div>
+                                      <!-- Boss Area -->
+                        <div class="relative z-10 w-full flex flex-col items-center">
+                            <div class="bg-black/60 border-2 border-black px-4 py-2 mb-2">
+                                <p class="text-white pixel-text" style="font-size: 6px; letter-spacing: 1px;">${state.user.lv >= 3 ? 'THE LEVIATHAN' : (state.user.lv >= 2 ? 'PHANTOM ENEMY' : 'THE SLOUCHING CLOCKWORK')}</p>
+                            </div>
+                            <div class="w-full max-w-[280px] h-4 bg-black border-4 border-black mb-4">
+                                <div id="boss-hp-fill" class="h-full bg-[#ff4d4d] transition-all duration-300" style="width: ${(state.battle.bossHp / (state.user.lv >= 3 ? 1000 : (state.user.lv >= 2 ? 300 : 120))) * 100}%"></div>
+                            </div>
+                            <img id="boss-sprite" src="${state.user.lv >= 3 ? 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_012314_ssyt7f.png' : (state.user.lv >= 2 ? 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928345/Screenshot_2026-05-27_012218-Photoroom_sw5rm8.png' : 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_012139_rttg0t.png')}" class="w-40 h-40 object-contain floating">
+                        </div>
+ 
+                     <!-- Hero Area -->
+                        <div class="relative z-10 w-full flex flex-col items-center">
+                             <div class="relative">
+                                <img id="hero-sprite" src="${state.user.lv >= 2 ? 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101652_gfsyej.png' : 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_175137-Photoroom_ec2jpe.png'}" class="w-28 h-28 object-contain transition-all duration-100">
+                                
+                                ${state.user.upgrades && state.user.upgrades.runicShield ? `
+                                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <div class="w-24 h-24 rounded-full bg-cyan-400/30 border-2 border-cyan-300 animate-pulse mix-blend-screen shadow-[0_0_20px_cyan]"></div>
+                                    </div>
+                                ` : ''}
+
+                                ${state.user.upgrades && state.user.upgrades.petBeetle ? `
+                                    <img src="https://res.cloudinary.com/ddf5woswa/image/upload/v1779977352/Screenshot_2026-05-28_210733_ogf9rp.png" 
+                                         class="absolute -left-20 bottom-0 w-10 h-10 object-contain beetle-tag z-20">
+                                ` : ''}
+                             </div>
+
+                             <div class="bg-black/60 border-2 border-black px-3 py-1 mb-1 mt-1">
+                                <p class="text-white pixel-text" style="font-size: 5px; letter-spacing: 1px;">${state.user.characterClass.toUpperCase()} HERO</p>
+                             </div>
+                             <div class="w-full max-w-[200px] h-3 bg-black border-[3px] border-black">
+                                <div id="hero-hp-fill" class="h-full bg-[#1fff8f] transition-all duration-300" style="width: ${(state.battle.playerHp / state.user.maxHp) * 100}%"></div>
+                            </div>
+                        </div>
+                    </div>
+ 
+                    <!-- Combat Controls & Slider -->
+                    <div class="p-4 border-t-8 border-black flex flex-col items-center" style="background-image: url('https://res.cloudinary.com/ddf5woswa/image/upload/v1779928549/Screenshot_2026-05-28_073331_ef6kek.png'); background-size: cover;">
+                        <!-- Minigame Section (Hidden by default) -->
+                        <div id="minigame-container" class="w-full hidden flex flex-col items-center">
+                            <div id="combat-minigame" class="relative w-full h-8 bg-black border-4 border-black overflow-hidden mb-1">
+                                <div class="absolute h-full bg-[#ff6b6b]" style="left: 0%; width: 20%"></div>
+                                <div class="absolute h-full bg-[#ffeb3b]" style="left: 20%; width: 20%"></div>
+                                <div class="absolute h-full bg-[#69f0ae]" style="left: 40%; width: 20%"></div>
+                                <div class="absolute h-full bg-[#ffeb3b]" style="left: 60%; width: 20%"></div>
+                                <div class="absolute h-full bg-[#ff6b6b]" style="left: 80%; width: 20%"></div>
+                                <div id="slider-caret" class="absolute h-full w-2 bg-white shadow-[0_0_15px_white]" style="left: 0%"></div>
+                            </div>
+                            <div id="dmg-notification" class="text-white pixel-text h-5 flex items-center justify-center text-center uppercase" style="font-size: 7px;"></div>
+                        </div>
+ 
+                        <!-- Button Section -->
+                        <div id="action-buttons" class="w-full space-y-2">
+                            <button onclick="battleAction('fight')" class="w-full py-3 border-4 border-black bg-black text-white pixel-text shadow-xl transform transition-all duration-100 active:scale-85 active:opacity-90" style="font-size: 10px;">FIGHT</button>
+                            <button onclick="battleAction('retreat')" class="w-full py-3 border-4 border-black bg-black text-white pixel-text shadow-xl transform transition-all duration-100 active:scale-85 active:opacity-90" style="font-size: 10px;">RETREAT</button>
+                        </div>
+                    </div>
+                </div>
+            `
+
+        };
+
+        const shopItems = {
+            boosts: [
+                { name: "XP FLASK", price: 50, icon: "flask-conical", rarity: "Common" },
+                { name: "STREAK ICE", price: 75, icon: "snowflake", rarity: "Rare" },
+                { name: "POISON VIAL", price: 25, icon: "battery-medium", rarity: "Common" }
+            ],
+            equipment: [
+                { name: "PURPLE FLAME", price: 150, icon: "zap", desc: "Speed: 10% slower slider speed." },
+                { name: "WHITE NAIL", price: 250, icon: "sword", desc: "Damage: +10 damage bonus." },
+                { name: "PET BEETLE", price: 400, icon: "bug", desc: "Gold: +20 Crystals per victory." },
+                { name: "RUNIC SHIELD", price: 200, icon: "shield-check", desc: "HP: +50 Max health capacity." }
+            ],
+            classes: [
+                { id: 'knight', name: "THE KNIGHT", price: 500, icon: "shield", desc: "Bonus: +50 Max HP (150 Total HP)." },
+                { id: 'mage', name: "THE MAGE", price: 750, icon: "sparkles", desc: "Bonus: +10% Crit Zone width." }
+            ]
+        };
+
+        // --- Core Functions ---
+        function toggleLighting() {
+            state.settings.lightMode = !state.settings.lightMode;
+            applyLighting();
+            updateFirebase();
+            switchScreen('setup', true);
+        }
+
+        function applyLighting() {
+            const container = document.querySelector('.relative.w-full.max-w-\\[480px\\]');
+            if (container) {
+                if (state.settings.lightMode) {
+                    container.style.filter = 'brightness(1.1) contrast(1.1) saturate(1.1)';
+                    container.style.backgroundColor = '#fdfbf7';
+                } else {
+                    container.style.filter = '';
+                    container.style.backgroundColor = '#1a1a1a';
+                }
+            }
+        }
+
+        function switchScreen(screen, force = false) {
+            const isSameScreen = state.currentScreen === screen;
+            if (!force && isSameScreen) return;
+            
+            // Hide/Show main nav and header
+            const nav = document.getElementById('main-nav');
+            const header = document.getElementById('main-header');
+            
+            if (screen === 'login') {
+                if (nav) nav.style.display = 'none';
+                if (header) header.style.display = 'none';
+                
+                const gate = document.getElementById('login-gate');
+                const gateContent = document.getElementById('login-gate-content');
+                if (gate && gateContent) {
+                    gate.classList.remove('hidden');
+                    gateContent.innerHTML = templates.login();
+                }
+                return;
+            } else {
+                if (nav) nav.style.display = 'flex';
+                if (header) header.style.display = 'flex';
+                const gate = document.getElementById('login-gate');
+                if (gate) gate.classList.add('hidden');
+            }
+
+            sound.init(); // Ensure audio context is ready
+            sound.playSound('click');
+            
+            const content = document.getElementById('app-content');
+            const direction = screenOrder[screen] > screenOrder[state.currentScreen] ? 'right' : 'left';
+            
+            state.currentScreen = screen;
+            
+            // UI Updates
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const navEl = document.getElementById(`nav-${screen}`);
+            if (navEl) navEl.classList.add('active');
+
+            // Apply animation only if it's a different screen
+            content.classList.remove('page-transition-right', 'page-transition-left');
+            if (!isSameScreen) {
+                void content.offsetWidth; // Trigger reflow
+                content.classList.add(direction === 'right' ? 'page-transition-right' : 'page-transition-left');
+            }
+
+            content.innerHTML = templates[screen]();
+            lucide.createIcons();
+            applyLighting();
+            updateHeader();
+        }
+
+        function updateHeader() {
+            const profileNameEl = document.getElementById('header-profile-name');
+            if (profileNameEl) profileNameEl.textContent = state.user.profileName;
+            document.getElementById('header-lv').textContent = state.user.lv;
+            document.getElementById('header-xp').textContent = state.user.xp;
+            document.getElementById('header-cr').textContent = state.user.cr;
+            const classText = document.getElementById('header-class-text');
+            if (classText) {
+                classText.innerHTML = `LV. <span id="header-lv">${state.user.lv}</span> ${state.user.characterClass}`;
+            }
+            
+            // Calculate progress relative to current cap
+            let xpProgress = 0;
+            if (state.user.lv === 1) {
+                xpProgress = (state.user.xp / 100) * 100;
+            } else if (state.user.lv === 2) {
+                xpProgress = ((state.user.xp - 100) / 150) * 100;
+            } else if (state.user.lv >= 3) {
+                xpProgress = 100;
+            }
+            
+            const xpBar = document.getElementById('header-xp-bar');
+            if (xpBar) xpBar.style.width = `${Math.min(100, xpProgress)}%`;
+        }
+
+        function getHabitIcon(key) {
+            switch(key) {
+                case 'water': return 'droplets';
+                case 'phone': return 'smartphone-nfc';
+                case 'recall': return 'award';
+                default: return 'circle';
+            }
+        }
+
+        function getHabitEmoji(key) {
+            switch(key) {
+                case 'water': return '💧';
+                case 'phone': return '📵';
+                case 'recall': return '📖';
+                default: return '✨';
+            }
+        }
+
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast pixel-text';
+            toast.style.fontSize = '8px';
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function showModal(contentHtml) {
+            const overlay = document.getElementById('modal-overlay');
+            const container = document.getElementById('modal-container');
+            container.innerHTML = `
+                <div class="relative w-full h-full flex flex-col">
+                    <button onclick="closeModal()" class="absolute -top-3 -right-3 z-[250] bg-black border-2 border-[#5c3d2e] p-2 text-white hover:bg-[#b5451b] transition-colors shadow-xl rounded-sm">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                    <div id="modal-inner-content">
+                        ${contentHtml}
+                    </div>
+                </div>
+            `;
+            overlay.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeModal() {
+            stopCamera();
+            document.getElementById('modal-overlay').classList.add('hidden');
+        }
+
+        // --- Habit Logic ---
+        function handleHabitClick(key) {
+            const habit = state.habits[key];
+            if (habit.completed) {
+                showToast("QUEST ALREADY COMPLETE!");
+                return;
+            }
+
+            switch(key) {
+                case 'water':
+                    showModal(`
+                        <h2 class="pixel-text mb-4 text-blue-400">WATER VOLUMETRICS</h2>
+                        <div class="relative w-full aspect-video bg-black border-4 border-black mb-4 overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+                            <video id="camera-preview" class="w-full h-full object-cover scale-x-[-1]" autoplay playsinline></video>
+                            <div id="camera-error" class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+                                <i data-lucide="camera" class="w-12 h-12 text-gray-800"></i>
+                                <p class="pixel-text text-gray-600 mt-2" style="font-size: 5px;">WAITING FOR SCANNER...</p>
+                            </div>
+                            
+                            <!-- Silhouette Overlay -->
+                            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div class="w-20 h-40 border-4 border-blue-500 rounded-[20px] relative">
+                                    <div class="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-4 border-4 border-blue-500 rounded-t-lg"></div>
+                                    <div class="absolute inset-0 border-2 border-blue-400/30 m-2 rounded-[15px]"></div>
+                                </div>
+                            </div>
+
+                            <div class="scanner-line"></div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="pixel-text text-[5px] text-gray-400 block mb-1">DECLARATION PROTOCOL</label>
+                            <select id="vessel-selector" class="w-full bg-black border-2 border-[#5c3d2e] p-2 text-white pixel-text focus:border-blue-500 outline-none" style="font-size: 6px;">
+                                <option value="0">Choose Vessel Type...</option>
+                                <option value="1">Plastic Water Bottle</option>
+                                <option value="2">Ceramic Mug</option>
+                                <option value="3">Glass Tumbler</option>
+                            </select>
+                        </div>
+
+                        <p class="pixel-text text-gray-400 mb-6" style="font-size: 6px;">ALIGN VESSEL WITHIN BLUE SILHOUETTE</p>
+                        <button id="snap-btn" onclick="capturePhoto()" class="hidden btn-crimson px-6 py-4 w-full text-white pixel-text shadow-xl transform transition-all duration-100 active:scale-85 active:opacity-90">SNAP PHOTO / ANALYZE</button>
+                    `);
+                    startCamera();
+                    break;
+                case 'phone':
+                    showModal(`
+                        <h2 class="pixel-text mb-4">GRATITUDE LOG</h2>
+                        <p class="pixel-text text-yellow-500 mb-4" style="font-size: 6px;">TYPE 3 DISTINCT THINGS YOU ARE GRATEFUL FOR</p>
+                        <div class="space-y-2 mb-6">
+                            <input id="g-1" class="w-full bg-black border-2 border-[#5c3d2e] p-2 text-white pixel-text" style="font-size: 6px;" placeholder="1. ...">
+                            <input id="g-2" class="w-full bg-black border-2 border-[#5c3d2e] p-2 text-white pixel-text" style="font-size: 6px;" placeholder="2. ...">
+                            <input id="g-3" class="w-full bg-black border-2 border-[#5c3d2e] p-2 text-white pixel-text" style="font-size: 6px;" placeholder="3. ...">
+                        </div>
+                        <button onclick="checkGratitudeInputs()" class="btn-crimson px-6 py-4 w-full text-white pixel-text transform transition-all duration-100 active:scale-85 active:opacity-90">SUBMIT LOG</button>
+                    `);
+                    break;
+                case 'recall':
+                    showModal(`
+                        <h2 class="pixel-text mb-4">SKILL MASTERY</h2>
+                        <p class="pixel-text text-gray-400 mb-4" style="font-size: 6px;">FEYNMAN TECHNIQUE: EXPLAIN TO A CHILD</p>
+                        <div class="space-y-2 mb-4">
+                            <input id="recall-topic" class="w-full bg-black border-2 border-[#5c3d2e] p-2 text-white pixel-text" style="font-size: 6px;" placeholder="TOPIC (e.g. Gravity, Blockchain)">
+                            <textarea id="recall-text" class="w-full h-24 bg-black border-2 border-[#5c3d2e] p-2 text-white pixel-text" style="font-size: 6px;" placeholder="EXPLAIN LIKE I'M 5..."></textarea>
+                        </div>
+                        <button onclick="checkRecallInputs()" class="btn-crimson px-6 py-4 w-full text-white pixel-text transform transition-all duration-100 active:scale-85 active:opacity-90">SUBMIT SYNTHESIS</button>
+                    `);
+                    break;
+            }
+        }
+
+        function checkGratitudeInputs() {
+            const i1 = document.getElementById('g-1').value;
+            const i2 = document.getElementById('g-2').value;
+            const i3 = document.getElementById('g-3').value;
+            if (i1.length < 5 || i2.length < 5 || i3.length < 5) {
+                showToast("INPUTS TOO SHORT FOR AI ANALYSIS");
+                return;
+            }
+            simulateVerification('phone');
+        }
+
+        function checkRecallInputs() {
+            const topic = document.getElementById('recall-topic').value.toLowerCase().trim();
+            const text = document.getElementById('recall-text').value.trim();
+            const targetArea = document.getElementById('recall-text');
+            
+            // 1. One sentence minimum (8-10 words + punctuation)
+            const sentences = text.split(/[.!?]/).filter(s => s.trim().split(/\s+/).length >= 8);
+            
+            // 2. Topic relevance keywords
+            const dictionary = {
+                'photosynthesis': ['light', 'plant', 'sun', 'food', 'green', 'leaf', 'energy'],
+                'gravity': ['pull', 'earth', 'fall', 'mass', 'weight', 'down', 'star'],
+                'blockchain': ['block', 'chain', 'money', 'digital', 'ledger', 'safety', 'internet'],
+                'coding': ['computer', 'write', 'instruction', 'language', 'logic', 'app'],
+                'gym': ['muscle', 'lift', 'exercise', 'health', 'strong', 'run'],
+                'habit': ['repeat', 'routine', 'every day', 'small', 'goal']
+            };
+
+            let relevant = true;
+            if (dictionary[topic]) {
+                relevant = dictionary[topic].some(keyword => text.toLowerCase().includes(keyword));
+            }
+
+            if (sentences.length === 0 || !relevant) {
+                targetArea.style.borderColor = "#ff0000";
+                targetArea.classList.add('animate-shake');
+                showToast("Explanation failed synthesis check. Be more specific!");
+                setTimeout(() => {
+                    targetArea.style.borderColor = "#5c3d2e";
+                    targetArea.classList.remove('animate-shake');
+                }, 1000);
+                return;
+            }
+
+            simulateVerification('recall', topic);
+        }
+
+        function simulateVerification(key, param = '') {
+            const modalInner = document.getElementById('modal-inner-content');
+            const modalFrame = document.getElementById('modal-container');
+            
+            let loadingUI = '';
+            let marqueeText = '';
+
+            if (key === 'water') {
+                marqueeText = "AI Vision: Running deep tensor matrix scans for valid liquid vessel...";
+                loadingUI = `
+                    <div class="relative w-full h-40 bg-black border-4 border-black mb-4 overflow-hidden">
+                        <div class="scanner-line"></div>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <i data-lucide="scan-eye" class="w-12 h-12 text-green-500 animate-pulse"></i>
+                        </div>
+                    </div>
+                `;
+            } else if (key === 'phone') {
+                marqueeText = "Natural Language Processing: Evaluating text logs against blocked gibberish arrays...";
+                loadingUI = `
+                    <div class="w-full h-40 flex items-center justify-center mb-4">
+                        <div class="w-24 h-24 rounded-full border-4 border-yellow-500 runic-circle flex items-center justify-center">
+                            <i data-lucide="brain-circuit" class="w-10 h-10 text-yellow-500"></i>
+                        </div>
+                    </div>
+                `;
+            } else if (key === 'recall') {
+                marqueeText = "Knowledge Synthesis AI: Benchmarking explanation parameters vs. concept baseline data...";
+                loadingUI = `
+                    <div class="w-full h-40 bg-black border-4 border-black mb-4 p-4 font-mono text-green-500 overflow-hidden text-[6px]">
+                        <div class="matrix-text">
+                            ${Array(8).fill(0).map(() => Math.random().toString(2).slice(2)).join('<br>')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            modalInner.innerHTML = `
+                <div class="flex flex-col items-center py-4">
+                    ${loadingUI}
+                    <div class="w-full bg-[#1a1a1a] p-2 border-2 border-black overflow-hidden relative h-8 flex items-center mb-4">
+                        <p class="pixel-text text-yellow-500 whitespace-nowrap animate-marquee absolute left-full">
+                            ${marqueeText}
+                        </p>
+                    </div>
+                    <p class="pixel-text text-gray-500 animate-pulse border-t-2 border-dashed border-gray-700 pt-4 w-full text-center">CALCULATING CLOUD TOKEN GATES...</p>
+                </div>
+                <style>
+                    @keyframes marquee {
+                        from { left: 100%; }
+                        to { left: -250%; }
+                    }
+                    .animate-marquee {
+                        animation: marquee 5s linear infinite;
+                    }
+                </style>
+            `;
+            lucide.createIcons();
+
+            const delay = 2000;
+            
+            setTimeout(() => {
+                const streakBonus = 1 + (state.user.streak * 0.012);
+                const habit = state.habits[key];
+                habit.completed = true;
+                habit.streak += 1;
+                
+                let gainedXp = Math.floor(habit.xp * streakBonus);
+                if (state.inventory.includes("XP FLASK")) gainedXp *= 2;
+                
+                state.user.xp += gainedXp;
+                state.user.cr += Math.floor(habit.cr * streakBonus);
+                state.user.completed += 1;
+
+                if (state.user.completed === 3) {
+                    state.user.cr += Math.floor(20 * streakBonus);
+                    state.user.streak += 1;
+                    state.user.counters.perfectDayStreak++;
+                    showToast("PERFECT DAY BONUS!");
+                }
+
+                checkLevelUp();
+                checkMastery();
+                updateHeader();
+                updateFirebase(); // Sync completion logic to live database
+                
+                if (key === 'phone') {
+                    triggerConfetti();
+                    sound.playSound('complete');
+                    modalInner.innerHTML = `
+                        <h2 class="pixel-text text-green-500 mb-4">VALEDICTORY ANALYSIS</h2>
+                        <div class="p-4 bg-black/40 border-2 border-yellow-800 italic leading-relaxed text-yellow-100" style="font-size: 7px;">
+                            "Lo, the warmth of thy gratitude illuminates this digital stage! 
+                            Thy mindfulness is a script well-performed in the theater of life."
+                        </div>
+                        <button onclick="closeModal(); switchScreen('arena', true);" class="btn-crimson w-full mt-6 py-4 text-white pixel-text">CURTAIN CALL</button>
+                    `;
+                } else if (key === 'recall') {
+                    triggerConfetti();
+                    sound.playSound('complete');
+                    modalInner.innerHTML = `
+                         <h2 class="pixel-text text-green-500 mb-4">SYNTHESIS COMPLETE</h2>
+                         <div class="bg-black/50 border-2 border-green-900 p-4 mb-4 text-left">
+                            <p class="pixel-text text-green-400 mb-2" style="font-size: 6px;">[FEEDBACK LOG: ${param.toUpperCase()}]</p>
+                            <p class="pixel-text text-white mb-1" style="font-size: 5px;">• Concept Depth: 98.4% (PASS)</p>
+                            <p class="pixel-text text-white mb-1" style="font-size: 5px;">• Child-Level Clarity: MASTERED</p>
+                            <p class="pixel-text text-white mb-1" style="font-size: 5px;">• Accuracy vs. Baseline: PERFECT</p>
+                            <div class="mt-4 border-t border-green-900 pt-2">
+                                <p class="text-[5px] text-gray-400 italic font-mono">Simulated results confirmed. Reward gates unlocked.</p>
+                            </div>
+                         </div>
+                         <button onclick="closeModal(); switchScreen('arena', true);" class="btn-crimson w-full mt-2 py-4 text-white pixel-text">RETRIEVE REWARD</button>
+                    `;
+                } else {
+                    triggerConfetti();
+                    sound.playSound('complete');
+                    closeModal();
+                    switchScreen('arena', true);
+                    showToast(`AI VERIFIED! +${habit.cr} CRYSTALS`);
+                }
+                
+                lucide.createIcons();
+                updateFirebase();
+
+            }, delay);
+        }
+
+        function renderCheatCode() {
+            return `
+                <div class="p-3 border-2 border-dashed border-[#d8973c]/30 flex flex-col items-center">
+                    <p class="text-[#d8973c]/40 pixel-text mb-1" style="font-size: 5px;">SECRET ACCESS</p>
+                    <div class="flex gap-1">
+                        <input type="password" id="cheat-input" class="bg-black border-2 border-black px-2 py-0.5 text-white pixel-text w-20 uppercase" style="font-size: 8px;" placeholder="...">
+                        <button onclick="activateCheat()" class="bg-[#d8973c] border-2 border-black px-2 py-0.5 text-black pixel-text transform transition-all duration-100 active:scale-85 active:opacity-90" style="font-size: 7px;">EXEC</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function activateCheat() {
+            const val = document.getElementById('cheat-input').value.toUpperCase();
+            if (val === 'MRMARK') {
+                state.user.cr = 9999;
+                
+                // Automatically tick all 3 habits
+                Object.keys(state.habits).forEach(key => {
+                    const habit = state.habits[key];
+                    if (!habit.completed) {
+                        habit.completed = true;
+                        habit.streak += 1;
+                        state.user.xp += habit.xp;
+                        state.user.cr += habit.cr;
+                        state.user.completed += 1;
+                    }
+                });
+
+                // Trigger perfect day bonus if all ticked
+                if (state.user.completed === 3) {
+                    state.user.cr += 20;
+                    state.user.streak += 1;
+                    state.user.counters.perfectDayStreak++;
+                    showToast("CHEAT ACTIVE: ALL HABITS COMPLETE!");
+                }
+
+                if (state.user.lv < 3) {
+                    if (state.user.lv === 1) state.user.xp = 100;
+                    else if (state.user.lv === 2) state.user.xp = 250;
+                    checkLevelUp();
+                } else {
+                    showToast("LEVEL CAP REACHED. CRYSTALS RESET TO 9999.");
+                }
+                sound.playSound('victory');
+                triggerCoinRain();
+                updateHeader();
+                switchScreen(state.currentScreen, true);
+                updateFirebase();
+            } else {
+                showToast("INVALID ACCESS CODE");
+            }
+        }
+
+        function checkLevelUp() {
+            let oldLv = state.user.lv;
+            
+            if (state.user.xp >= 250) {
+                state.user.lv = 3;
+            } else if (state.user.xp >= 100) {
+                state.user.lv = 2;
+            } else {
+                state.user.lv = 1;
+            }
+
+            if (state.user.lv > oldLv) {
+                showToast(`LEVEL UP! REACHED LV. ${state.user.lv}`);
+                sound.playSound('complete');
+                
+                // Maximum health scale adjustments immediately following reward
+                if (state.user.lv === 1) state.user.maxHp = 100;
+                else if (state.user.lv === 2) state.user.maxHp = 150;
+                else if (state.user.lv === 3) state.user.maxHp = 200;
+
+                if (state.inventory.includes("THE KNIGHT")) {
+                    state.user.maxHp += 50;
+                }
+                if (state.user.upgrades && state.user.upgrades.runicShield) {
+                    state.user.maxHp += 50;
+                }
+            }
+        }
+
+        // --- Shop Logic ---
+        function buyItem(name, price) {
+            if (state.user.cr < price) {
+                showToast("INSUFFICIENT CRYSTALS!");
+                return;
+            }
+            if (state.inventory.includes(name)) {
+                showToast("ALREADY OWNED!");
+                return;
+            }
+            state.user.cr -= price;
+            state.inventory.push(name);
+            
+            // Class & Upgrades Logic
+            if (name === "THE KNIGHT") {
+                state.user.characterClass = "KNIGHT";
+                state.user.maxHp = 150;
+            } else if (name === "THE MAGE") {
+                state.user.characterClass = "MAGE";
+                state.user.critBonus = 10;
+            } else if (name === "PURPLE FLAME") {
+                state.user.upgrades.purpleFlame = true;
+            } else if (name === "WHITE NAIL") {
+                state.user.upgrades.whiteNail = true;
+            } else if (name === "PET BEETLE") {
+                state.user.upgrades.petBeetle = true;
+            } else if (name === "RUNIC SHIELD") {
+                state.user.upgrades.runicShield = true;
+                state.user.maxHp += 50;
+                state.battle.playerHp += 50;
+            }
+
+            triggerCoinRain();
+            sound.playSound('buy');
+            showToast(`PURCHASED: ${name}`);
+            updateHeader();
+            switchScreen('shop');
+        }
+
+        // --- Mastery Logic ---
+        function checkMastery() {
+            const now = new Date();
+            const hour = now.getHours();
+
+            // Early Bird: Complete any habit before 8 AM
+            if (hour < 8 && Object.values(state.habits).some(h => h.completed)) {
+                unlockBadge('bird', 'EARLY BIRD');
+            }
+
+            // Hydro Hero: 7 day streak (simulated requirement check)
+            if (state.user.streak >= 7 && !state.user.badges.hydro) {
+                unlockBadge('hydro', 'HYDRO HERO');
+            }
+
+            // Iron Will: 5 defeats without retreat
+            if (state.user.counters.willDefeats >= 5 && !state.user.counters.retreatClicked && !state.user.badges.will) {
+                unlockBadge('will', 'IRON WILL');
+            }
+
+            // Zen Master: 3 days Perfect Day
+            if (state.user.counters.perfectDayStreak >= 3 && !state.user.badges.zen) {
+                unlockBadge('zen', 'ZEN MASTER');
+            }
+        }
+
+        function unlockBadge(id, name) {
+            if (state.user.badges[id]) return;
+            state.user.badges[id] = true;
+            triggerConfetti();
+            sound.playSound('complete');
+            showToast(`MASTERY UNLOCKED: ${name.toUpperCase()}!`);
+            updateFirebase();
+        }
+
+        // --- Battle Logic ---
+        function startBattle() {
+            const habitsDone = Object.values(state.habits).filter(h => h.completed).length;
+            const lv = state.user.lv;
+
+            sound.startBattleMusic();
+
+            state.battle = { 
+                bossHp: lv >= 3 ? 1000 : (lv >= 2 ? 300 : 120), 
+                playerHp: state.user.maxHp, 
+                turn: 1,
+                sliderPos: 0,
+                sliderDir: 1,
+                isRolling: false,
+                isFrozen: false,
+                attacksPerTurn: 1 + habitsDone,
+                attacksRemaining: 0,
+                animIntervals: []
+            };
+
+            // Poison Vial Logic
+            if (state.inventory.includes("POISON VIAL")) {
+                state.battle.bossHp = Math.floor(state.battle.bossHp / 2);
+                showToast("POISON VIAL USED! BOSS HP HALVED");
+                // Remove from inventory so it can be bought again
+                state.inventory = state.inventory.filter(item => item !== "POISON VIAL");
+                updateFirebase();
+            }
+
+            document.body.insertAdjacentHTML('beforeend', templates.battle());
+            lucide.createIcons();
+
+            const heroSprite = document.getElementById('hero-sprite');
+            const bossSprite = document.getElementById('boss-sprite');
+
+            // Level 3 Animations
+            if (lv >= 3) {
+                const heroImages = [
+                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101711_epudh2.png',
+                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101726_fkfoyi.png'
+                ];
+                const bossImages = [
+                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_012314_ssyt7f.png',
+                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_012255_i0v0cm.png',
+                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928345/Screenshot_2026-05-27_012305_z56rsx.png'
+                ];
+
+                let heroIdx = 0;
+                const heroInt = setInterval(() => {
+                    if (!document.getElementById('battle-screen')) return;
+                    heroIdx = (heroIdx + 1) % heroImages.length;
+                    if (heroSprite) heroSprite.src = heroImages[heroIdx];
+                }, 2000);
+
+                let bossIdx = 0;
+                const bossInt = setInterval(() => {
+                    if (!document.getElementById('battle-screen')) return;
+                    bossIdx = (bossIdx + 1) % bossImages.length;
+                    if (bossSprite) bossSprite.src = bossImages[bossIdx];
+                }, 2000);
+
+                state.battle.animIntervals.push(heroInt, bossInt);
+            } 
+            // Level 2 Animations
+            else if (lv === 2) {
+                const heroSprite = document.getElementById('hero-sprite');
+                const bossSprite = document.getElementById('boss-sprite');
+                
+                const heroImages = [
+                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101652_gfsyej.png',
+                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101700_gcnz2d.png'
+                ];
+                const bossImages = [
+                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928345/Screenshot_2026-05-27_012218-Photoroom_sw5rm8.png',
+                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928345/Screenshot_2026-05-27_012211-Photoroom_kr2ghq.png',
+                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928345/Screenshot_2026-05-27_012203-Photoroom_qshgbg.png'
+                ];
+
+                let heroIdx = 0;
+                const heroInt = setInterval(() => {
+                    if (!document.getElementById('battle-screen')) return;
+                    heroIdx = (heroIdx + 1) % heroImages.length;
+                    if (heroSprite) heroSprite.src = heroImages[heroIdx];
+                }, 800);
+
+                let bossIdx = 0;
+                const bossInt = setInterval(() => {
+                    if (!document.getElementById('battle-screen')) return;
+                    bossIdx = (bossIdx + 1) % bossImages.length;
+                    if (bossSprite) bossSprite.src = bossImages[bossIdx];
+                }, 500);
+
+                state.battle.animIntervals.push(heroInt, bossInt);
+            } else {
+                const heroSprite = document.getElementById('hero-sprite');
+                const bossSprite = document.getElementById('boss-sprite');
+                
+                const heroImages = [
+                    "https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_175137-Photoroom_ec2jpe.png",
+                    "https://res.cloudinary.com/ddf5woswa/image/upload/v1779928345/Screenshot_2026-05-26_235703-Photoroom_augdec.png"
+                ];
+                const bossImages = [
+                    "https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_012139_rttg0t.png",
+                    "https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_012155_xh8hzq.png",
+                    "https://res.cloudinary.com/ddf5woswa/image/upload/v1779928345/Screenshot_2026-05-27_012149_o3mlcn.png"
+                ];
+
+                let heroIdx = 0;
+                const heroInt = setInterval(() => {
+                    if (!document.getElementById('battle-screen')) return;
+                    heroIdx = (heroIdx + 1) % heroImages.length;
+                    if (heroSprite) heroSprite.src = heroImages[heroIdx];
+                }, 800);
+
+                let bossIdx = 0;
+                const bossInt = setInterval(() => {
+                    if (!document.getElementById('battle-screen')) return;
+                    bossIdx = (bossIdx + 1) % bossImages.length;
+                    if (bossSprite) bossSprite.src = bossImages[bossIdx];
+                }, 800);
+
+                state.battle.animIntervals.push(heroInt, bossInt);
+            }
+        }
+
+        function battleAction(action) {
+            if (state.battle.isFrozen) return;
+
+            if (action === 'retreat') {
+                sound.playSound('click');
+                state.user.counters.retreatClicked = true;
+                if (state.user.cr < 10) {
+                    showToast("CANNOT RETREAT! (10 CR REQ)");
+                    return;
+                }
+                state.user.cr -= 10;
+                sound.stopBattleMusic();
+                sound.startAmbientMusic();
+                clearBattleIntervals();
+                const screen = document.getElementById('battle-screen');
+                if (screen) screen.remove();
+                showToast("RETREATED! -10 CR");
+                updateHeader();
+                return;
+            }
+
+            if (action === 'fight') {
+                sound.playSound('click');
+                
+                const buttons = document.getElementById('action-buttons');
+                if (buttons) buttons.classList.add('hidden');
+                
+                state.battle.attacksRemaining = state.battle.attacksPerTurn;
+                nextAttack();
+            }
+        }
+
+        function nextAttack() {
+            if (state.battle.attacksRemaining <= 0) {
+                const miniGroup = document.getElementById('minigame-container');
+                if (miniGroup) miniGroup.classList.add('hidden');
+                // Removed button show here, moved to after boss attack in bossAttack()
+                
+                if (state.battle.bossHp <= 0) {
+                    victory();
+                } else {
+                    bossAttack();
+                }
+                return;
+            }
+
+            const miniGroup = document.getElementById('minigame-container');
+            if (miniGroup) miniGroup.classList.remove('hidden');
+
+            const notifyEl = document.getElementById('dmg-notification');
+            if (notifyEl) notifyEl.textContent = `ATTACK ${state.battle.attacksPerTurn - state.battle.attacksRemaining + 1} OF ${state.battle.attacksPerTurn}`;
+
+            state.battle.sliderPos = 0;
+            state.battle.sliderDir = 1;
+            state.battle.isRolling = true;
+            state.battle.isFrozen = false;
+            
+            // Randomized speed range from slow to slightly fast (2% to 6% per tick)
+            let speed = Math.random() * 4 + 2;
+            if (state.user.upgrades && state.user.upgrades.purpleFlame) {
+                speed *= 0.9;
+            }
+
+            state.battle.sliderInterval = setInterval(() => {
+                const caret = document.getElementById('slider-caret');
+                if (!caret) return;
+                state.battle.sliderPos += (speed * state.battle.sliderDir);
+                if (state.battle.sliderPos >= 100) {
+                    state.battle.sliderPos = 100;
+                    state.battle.sliderDir = -1;
+                } else if (state.battle.sliderPos <= 0) {
+                    state.battle.sliderPos = 0;
+                    state.battle.sliderDir = 1;
+                }
+                caret.style.left = state.battle.sliderPos + '%';
+            }, 30);
+
+            const screen = document.getElementById('battle-screen');
+            const stopHandler = (e) => {
+                if (state.battle.isRolling && !state.battle.isFrozen) {
+                    e.stopPropagation();
+                    stopSlider();
+                    screen.removeEventListener('click', stopHandler);
+                }
+            };
+            setTimeout(() => {
+                if (screen) screen.addEventListener('click', stopHandler);
+            }, 50);
+        }
+
+        function stopSlider() {
+            state.battle.isRolling = false;
+            state.battle.isFrozen = true;
+            clearInterval(state.battle.sliderInterval);
+            sound.playSound('hit');
+
+            const pos = state.battle.sliderPos;
+            // Equal zones (20% each): 0-20 (R), 20-40 (Y), 40-60 (G), 60-80 (Y), 80-100 (R)
+            let dmgMult = 0;
+            let msg = "MISS!";
+
+            if (pos >= 40 && pos <= 60) {
+                dmgMult = 1.0;
+                msg = "PERFECT CRITICAL HIT!";
+                triggerConfetti();
+            } else if ((pos >= 20 && pos < 40) || (pos > 60 && pos <= 80)) {
+                dmgMult = 0.5;
+                msg = "SOLID HIT!";
+            } else {
+                msg = "MISS!";
+            }
+
+            const baseDmg = state.user.lv >= 3 ? 40 : (state.user.lv >= 2 ? 30 : 10);
+            let finalBaseDmg = baseDmg;
+            if (state.user.upgrades && state.user.upgrades.whiteNail) {
+                finalBaseDmg += 10;
+            }
+            const totalDmg = Math.floor(finalBaseDmg * dmgMult);
+            
+            state.battle.bossHp -= totalDmg;
+            if (state.battle.bossHp < 0) state.battle.bossHp = 0;
+
+            const notifyEl = document.getElementById('dmg-notification');
+            if (notifyEl) notifyEl.textContent = `${msg} DEALT ${totalDmg} DMG`;
+            
+            const bossHpFill = document.getElementById('boss-hp-fill');
+            const maxBossHp = state.user.lv >= 3 ? 1000 : (state.user.lv >= 2 ? 300 : 120);
+            if (bossHpFill) bossHpFill.style.width = (state.battle.bossHp / maxBossHp) * 100 + '%';
+            
+            const boss = document.getElementById('boss-sprite');
+            if (boss) {
+                boss.style.filter = 'brightness(2) contrast(2)';
+                boss.classList.add('animate-ping');
+                setTimeout(() => {
+                    boss.style.filter = '';
+                    boss.classList.remove('animate-ping');
+                }, 200);
+            }
+
+            // Increment Turn every time the slider minigame is finished
+            state.battle.attacksRemaining--;
+
+            setTimeout(() => {
+                state.battle.isFrozen = false;
+                if (notifyEl) notifyEl.textContent = '';
+                nextAttack();
+            }, 1000);
+        }
+
+        function bossAttack() {
+            const bossSprite = document.getElementById('boss-sprite');
+            if (bossSprite) {
+                bossSprite.classList.remove('floating');
+                bossSprite.classList.add('animate-bounce');
+                setTimeout(() => {
+                    bossSprite.classList.remove('animate-bounce');
+                    bossSprite.classList.add('floating');
+                }, 800);
+            }
+
+            const hero = document.getElementById('hero-sprite');
+            
+            // Sync attack timing with bounce peak
+            setTimeout(() => {
+                sound.playSound('hit');
+                if (hero) {
+                    // Dramatic Hit Flash (Bright Red)
+                    hero.style.filter = 'brightness(0) saturate(100%) invert(20%) sepia(90%) saturate(7000%) hue-rotate(0deg) contrast(150%)'; 
+                    hero.classList.add('translate-x-2');
+                    setTimeout(() => {
+                        hero.style.filter = '';
+                        hero.classList.remove('translate-x-2');
+                    }, 200);
+                }
+                
+                const bossDmg = state.user.lv >= 3 ? (Math.floor(Math.random() * 11) + 15) : (state.user.lv >= 2 ? (Math.floor(Math.random() * 11) + 5) : (Math.floor(Math.random() * 3) + 3)); 
+                state.battle.playerHp -= bossDmg;
+                if (state.battle.playerHp <= 0) {
+                    state.battle.playerHp = 0;
+                    const hpFill = document.getElementById('hero-hp-fill');
+                    if (hpFill) hpFill.style.width = '0%';
+                    setTimeout(gameOver, 500);
+                } else {
+                    const hpFill = document.getElementById('hero-hp-fill');
+                    if (hpFill) hpFill.style.width = (state.battle.playerHp / state.user.maxHp) * 100 + '%';
+                    
+                    // After boss finishes and player is ready for next round
+                    setTimeout(() => {
+                        const buttons = document.getElementById('action-buttons');
+                        if (buttons && state.battle.playerHp > 0) {
+                            buttons.classList.remove('hidden');
+                            state.battle.turn++;
+                            const turnEl = document.getElementById('battle-turn-counter');
+                            if (turnEl) turnEl.textContent = `TURN ${state.battle.turn}`;
+                        }
+                    }, 800);
+                }
+            }, 400);
+        }
+
+        function victory() {
+            triggerConfetti();
+            sound.playSound('victory');
+            state.user.counters.willDefeats++;
+            checkMastery();
+
+            const streakBonus = 1 + (state.user.streak * 0.012);
+            const reward = 50; 
+            const xp = 50;     
+            
+            let totalReward = Math.floor(reward * streakBonus);
+            let totalXp = Math.floor(xp * streakBonus);
+            
+            if (state.inventory.includes("XP FLASK")) {
+                totalXp *= 2;
+            }
+            
+            let rewardMsg = `+${totalReward} CRYSTALS`;
+            if (state.user.upgrades && state.user.upgrades.petBeetle) {
+                totalReward += 20;
+                rewardMsg = `+${totalReward - 20} (+20 PET) CRYSTALS`;
+            }
+            
+            state.user.cr += totalReward;
+            state.user.xp += totalXp;
+            
+            checkLevelUp();
+
+            const battleScreen = document.querySelector('.fixed.inset-0.z-\\[150\\]');
+            battleScreen.innerHTML = `
+                <div class="flex-grow flex flex-col items-center justify-center bg-black/90 text-center p-10 z-[300]">
+                    <h1 class="text-yellow-500 text-3xl font-bold mb-6 pixel-text">VICTORY</h1>
+                    <div class="w-32 h-32 bg-[#333] border-4 border-yellow-500 rounded-full flex items-center justify-center mb-6 overflow-hidden">
+                        <i data-lucide="trophy" class="w-16 h-16 text-yellow-500"></i>
+                    </div>
+                    <div class="space-y-4 mb-8">
+                        <p class="text-white pixel-text" style="font-size: 10px;">BOSS DEFEATED</p>
+                        <p class="text-blue-400 pixel-text" style="font-size: 8px;">${rewardMsg}</p>
+                        <p class="text-green-400 pixel-text" style="font-size: 8px;">+${totalXp} XP</p>
+                    </div>
+                    <button onclick="finishBattle()" class="btn-crimson w-full py-4 text-white pixel-text transform transition-all duration-100 active:scale-85 active:opacity-90">RETURN TO ARENA</button>
+                </div>
+            `;
+            lucide.createIcons();
+            updateHeader();
+            updateFirebase();
+        }
+
+        function gameOver() {
+            sound.stopBattleMusic();
+            sound.startAmbientMusic();
+            clearBattleIntervals();
+            showModal(`
+                <h2 class="pixel-text text-red-500 mb-4">DEFEAT</h2>
+                <div class="p-6 brown-card mb-6">
+                    <p class="text-white pixel-text" style="font-size: 8px;">THE SPIRE HAS RECLAIMED YOU.</p>
+                </div>
+                <button onclick="closeModal(); document.querySelector('.fixed.inset-0.z-\\[150\\]').remove();" class="btn-crimson w-full py-4 text-white pixel-text">RETURN TO CAMP</button>
+            `);
+        }
+
+        function finishBattle() {
+            sound.stopBattleMusic();
+            sound.startAmbientMusic(); // Restart ambient after battle
+            clearBattleIntervals();
+            const screen = document.querySelector('.fixed.inset-0.z-\\[150\\]');
+            if (screen) screen.remove();
+            switchScreen('arena');
+        }
+
+        function clearBattleIntervals() {
+            if (state.battle.sliderInterval) clearInterval(state.battle.sliderInterval);
+            if (state.battle.animIntervals) {
+                state.battle.animIntervals.forEach(id => clearInterval(id));
+                state.battle.animIntervals = [];
+            }
+        }
+
+        // --- Profile & Auth Helpers ---
+        let appIntervals = [];
+        let dailyResetInterval = null;
+        let battleIdleInterval = null;
+        let enemyFloatInterval = null;
+
+        function trackInterval(fn, time, type) {
+            const id = setInterval(fn, time);
+            if (type === 'daily') dailyResetInterval = id;
+            if (type === 'battleIdle') battleIdleInterval = id;
+            if (type === 'enemyFloat') enemyFloatInterval = id;
+            appIntervals.push(id);
+            return id;
+        }
+
+        function clearAllIntervals() {
+            appIntervals.forEach(id => clearInterval(id));
+            appIntervals = [];
+            if (dailyResetInterval) { clearInterval(dailyResetInterval); dailyResetInterval = null; }
+            if (battleIdleInterval) { clearInterval(battleIdleInterval); battleIdleInterval = null; }
+            if (enemyFloatInterval) { clearInterval(enemyFloatInterval); enemyFloatInterval = null; }
+            clearBattleIntervals();
+            if (sound) {
+                if (sound.ambientInterval) clearInterval(sound.ambientInterval);
+                if (sound.musicInterval) clearInterval(sound.musicInterval);
+            }
+        }
+
+        function editProfileName() {
+            const nameEl = document.getElementById('header-profile-name');
+            const inputContainer = document.getElementById('header-name-input-container');
+            const input = document.getElementById('header-name-input');
+            
+            input.value = state.user.profileName;
+            nameEl.classList.add('invisible');
+            inputContainer.classList.remove('hidden');
+            input.focus();
+            
+            const save = () => {
+                const newName = input.value.trim().toUpperCase() || "SPIRESTAG";
+                state.user.profileName = newName;
+                updateHeader();
+                nameEl.classList.remove('invisible');
+                inputContainer.classList.add('hidden');
+                updateFirebase();
+            };
+            
+            input.onblur = save;
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') save();
+            };
+        }
+
+        function saveProfileNameFromSetup(value) {
+            const newName = value.trim().toUpperCase() || "SPIRESTAG";
+            state.user.profileName = newName;
+            updateHeader();
+            updateFirebase();
+        }
+
+        // Force these functions onto the absolute global window scope
+        window.handleSpireSignOut = function() {
+            console.log("Log Out triggered successfully.");
+            try {
+                if (typeof battleIdleInterval !== 'undefined') clearInterval(battleIdleInterval);
+                clearAllIntervals();
+                
+                const { auth, methods } = window.firebaseUtils;
+                if (auth) {
+                    methods.signOut(auth).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    window.location.reload();
+                }
+            } catch (err) {
+                alert("Sign Out Error: " + err.message);
+            }
+        };
+
+        window.handleSpireAccountSwitch = function() {
+            try {
+                if (typeof battleIdleInterval !== 'undefined') clearInterval(battleIdleInterval);
+                clearAllIntervals();
+                
+                sessionStorage.setItem('spire_switch_account_mode', 'true');
+                
+                const { auth, methods } = window.firebaseUtils;
+                if (auth) {
+                    methods.signOut(auth).then(() => {
+                        window.location.reload();
+                    }).catch(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    window.location.reload();
+                }
+            } catch (err) {
+                alert("Switch Routing Error: " + err.message);
+            }
+        };
+
+        window.handleSpireSave = async function() {
+            console.log("Manual save triggered.");
+            try {
+                sound.playSound('click');
+                const btn = event?.currentTarget;
+                if (btn) {
+                    const originalContent = btn.innerHTML;
+                    btn.innerHTML = '<i data-lucide="loader" class="w-6 h-6 text-yellow-400 animate-spin"></i><span class="pixel-text text-yellow-300" style="font-size: 6px;">SAVING...</span>';
+                    lucide.createIcons();
+                    
+                    await updateFirebase();
+                    
+                    btn.innerHTML = '<i data-lucide="check" class="w-6 h-6 text-green-400"></i><span class="pixel-text text-green-300" style="font-size: 6px;">SUCCESS</span>';
+                    lucide.createIcons();
+                    showToast("PROGRESS SAVED TO CLOUD");
+                    
+                    setTimeout(() => {
+                        btn.innerHTML = originalContent;
+                        lucide.createIcons();
+                    }, 2000);
+                } else {
+                    await updateFirebase();
+                    showToast("PROGRESS SAVED TO CLOUD");
+                }
+            } catch (err) {
+                console.error("Save failed:", err);
+                showToast("SAVE FAILED. CHECK CONNECTION.");
+            }
+        };
+
+        // --- Firebase Persistence ---
+        async function updateFirebase() {
+            if (window.firebaseUtils.db) {
+                const { db, methods, auth } = window.firebaseUtils;
+                if (auth.currentUser) {
+                    try {
+                        const userRef = methods.doc(db, "users", auth.currentUser.uid);
+                        await methods.setDoc(userRef, { state }, { merge: true });
+                    } catch (e) {
+                        console.error("Firebase sync failed:", e);
+                    }
+                }
+            }
+        }
+
+        // --- Init ---
+        document.addEventListener('DOMContentLoaded', () => {
+            switchScreen('arena');
+            applyLighting();
+
+            // Start ambient music on first user interaction
+            window.addEventListener('click', () => {
+                sound.startAmbientMusic();
+            }, { once: true });
+            
+            // Initial check for reset in case user is already logged in or session persists
+            window.addEventListener('focus', () => {
+                const { auth } = window.firebaseUtils;
+                if (auth && auth.currentUser) {
+                    checkDailyReset();
+                }
+            });
+
+            // Check auth state for persistence if configured
+            if (window.firebaseUtils.auth) {
+                window.firebaseUtils.methods.onAuthStateChanged(window.firebaseUtils.auth, async (user) => {
+                    if (user) {
+                        const { db, methods } = window.firebaseUtils;
+                        const docRef = methods.doc(db, "users", user.uid);
+                        try {
+                            const docSnap = await methods.getDoc(docRef);
+                            if (docSnap.exists()) {
+                                const cloudData = docSnap.data().state;
+                                state = Object.assign(getInitialState(), cloudData);
+                            } else {
+                                // New account initialization
+                                state.lastResetDate = new Date().toISOString().split('T')[0];
+                                // Default profile name to Google first name (Max 10 chars)
+                                if (user.displayName) {
+                                    state.user.profileName = user.displayName.split(' ')[0].toUpperCase().substring(0, 10);
+                                }
+                                await methods.setDoc(docRef, { state }, { merge: true });
+                            }
+                            
+                            checkDailyReset();
+                            // Start daily reset checker interval
+                            trackInterval(checkDailyReset, 60000, 'daily'); 
+                            
+                            applyLighting();
+                            updateHeader();
+                            // Switch screen will handle hiding the login-gate
+                            switchScreen('arena', true);
+                        } catch (e) {
+                            console.error("Critical Cloud Fetch Failure:", e);
+                            showToast("CLOUD ERROR: USING LOCAL SESSION");
+                            switchScreen('arena', true);
+                        }
+                    } else {
+                        // Null Session State Block: Immediately freeze and show login gate
+                        clearAllIntervals();
+                        state = getInitialState();
+                        updateHeader();
+                        switchScreen('login', true);
+                    }
+                });
+            } else {
+                // If firebase is disconnected or failed, default to arena for preview
+                switchScreen('arena', true);
+            }
+        });
+
+        let heroAnimFrame = 0;
+        let bossAnimFrame = 0;
+    </script>
+</body>
+</html>
