@@ -333,6 +333,12 @@
     <!-- Main Mobile Container -->
     <div class="relative w-full max-w-[480px] h-screen max-h-[720px] bg-[#1a1a1a] md:rounded-[3rem] md:border-[12px] border-[#5C3D2E] shadow-2xl flex flex-col relative overflow-hidden my-auto">
         
+        <!-- Stark, glaring red tint layout overlay for Level 3 penalty -->
+        <div id="leviathan-red-tint" class="hidden absolute inset-0 z-30 pointer-events-none mix-blend-color-burn bg-red-900/30 animate-pulse"></div>
+
+        <!-- WARNING BANNER AREA -->
+        <div id="consequence-warning-banner" class="hidden"></div>
+        
         <!-- Permanent Top Header -->
         <header id="main-header" class="h-20 bg-[#3d2b24] border-b-4 border-black flex items-center px-4 z-50">
             <div class="w-14 h-14 bg-black border-4 border-black rounded p-1 mr-3 flex items-center justify-center overflow-hidden">
@@ -596,6 +602,10 @@
 
         function triggerCoinRain() {
             const container = document.querySelector('.relative.w-full.max-w-\\[380px\\]');
+            if (!container) {
+                console.warn("Coin rain container not found!");
+                return;
+            }
             for (let i = 0; i < 20; i++) {
                 setTimeout(() => {
                     const coin = document.createElement('div');
@@ -804,7 +814,8 @@
                     turn: 1,
                     animIntervals: []
                 },
-                lastResetDate: ""
+                lastResetDate: "",
+                activeConsequence: null
             };
         }
 
@@ -815,6 +826,13 @@
             if (state.lastResetDate && state.lastResetDate !== today) {
                 console.log("Daily Reset Triggered: " + state.lastResetDate + " -> " + today);
                 
+                // MISSED HABIT CONSEQUENCE CHECK
+                const missedHabit = Object.values(state.habits).some(h => !h.completed);
+                if (missedHabit) {
+                    const conLevel = state.user.lv >= 3 ? 3 : (state.user.lv >= 2 ? 2 : 1);
+                    triggerNegativeConsequence(conLevel);
+                }
+
                 // Streak check: if no habits were completed yesterday
                 if (state.user.completed === 0) {
                     if (state.inventory.includes("STREAK ICE")) {
@@ -945,24 +963,51 @@
                     </div>
                 </div>
             `,
-            arena: () => `
+            arena: () => {
+                const now = Date.now();
+                const isSmokeActive = state.activeConsequence && 
+                    state.activeConsequence.type === 'smoke' && 
+                    state.activeConsequence.expiresAt > now && 
+                    state.activeConsequence.active;
+
+                let remainingTimeStr = "";
+                if (isSmokeActive) {
+                    const diff = state.activeConsequence.expiresAt - now;
+                    const hours = Math.floor(diff / (1000 * 60 * 60));
+                    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+                    remainingTimeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                }
+
+                return `
                 <div class="space-y-6">
-                    ${Object.entries(state.habits).map(([key, h]) => `
-                        <div onclick="handleHabitClick('${key}')" class="retro-card h-24 p-4 flex items-center justify-between cursor-pointer transform transition-all duration-100 active:scale-85 active:opacity-90">
-                            <div class="flex items-center gap-4">
-                                <div class="w-14 h-14 bg-[#1a1a1a] border-4 border-[#1a1a1a] rounded flex items-center justify-center">
-                                    <span class="text-3xl">${getHabitEmoji(key)}</span>
+                    <div class="relative rounded-lg overflow-hidden p-1">
+                        ${Object.entries(state.habits).map(([key, h]) => `
+                            <div onclick="handleHabitClick('${key}')" class="retro-card h-24 p-4 mb-4 flex items-center justify-between cursor-pointer transform transition-all duration-100 active:scale-85 active:opacity-90 ${isSmokeActive ? 'blur-[1.5px] opacity-75' : ''}">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-14 h-14 bg-[#1a1a1a] border-4 border-[#1a1a1a] rounded flex items-center justify-center">
+                                        <span class="text-3xl">${getHabitEmoji(key)}</span>
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <h3 class="text-white pixel-text ${isSmokeActive ? 'text-gray-300' : ''}" style="font-size: 10px;">${h.title}</h3>
+                                        <p class="text-gray-400 pixel-text mt-2" style="font-size: 7px;">+${h.xp} XP • +${h.cr} CR</p>
+                                    </div>
                                 </div>
-                                <div class="flex flex-col">
-                                    <h3 class="text-white pixel-text" style="font-size: 10px;">${h.title}</h3>
-                                    <p class="text-gray-400 pixel-text mt-2" style="font-size: 7px;">+${h.xp} XP • +${h.cr} CR</p>
+                                <div class="w-12 h-12 bg-[#2a2a2a] border-4 border-black rounded flex items-center justify-center">
+                                    ${h.completed ? '<i data-lucide="check" class="w-8 h-8 text-green-500"></i>' : ''}
                                 </div>
                             </div>
-                            <div class="w-12 h-12 bg-[#2a2a2a] border-4 border-black rounded flex items-center justify-center">
-                                ${h.completed ? '<i data-lucide="check" class="w-8 h-8 text-green-500"></i>' : ''}
+                        `).join('')}
+
+                        ${isSmokeActive ? `
+                            <div class="absolute inset-0 bg-gray-600/30 backdrop-blur-[2.5px] pointer-events-none flex flex-col items-center justify-center border-4 border-dashed border-gray-600/50 rounded-lg p-4 animate-pulse">
+                                <div class="bg-black/80 px-4 py-2 border-2 border-gray-600 rounded text-center shadow-2xl pointer-events-auto">
+                                    <p class="text-gray-300 pixel-text uppercase mb-1 animate-pulse" style="font-size: 6px;">THE SLOUCHING CLOCKWORK'S SMOKE MIST</p>
+                                    <p class="text-red-400 pixel-text" style="font-size: 8px;">CLEARS IN: ${remainingTimeStr}</p>
+                                </div>
                             </div>
-                        </div>
-                    `).join('')}
+                        ` : ''}
+                    </div>
 
                     <button onclick="startBattle()" class="w-full btn-crimson py-6 mt-2 flex items-center justify-center gap-4 shadow-2xl transform transition-all duration-100 active:scale-85 active:opacity-90">
                         <i data-lucide="swords" class="w-8 h-8 text-white"></i>
@@ -989,12 +1034,13 @@
                     </div>
                     ${renderCheatCode()}
                 </div>
-            `,
+                `;
+            },
             stats: () => `
                 <div class="space-y-6">
                     <div class="p-4 brown-card flex items-center">
                         <div class="w-24 h-24 bg-black border-4 border-black relative overflow-hidden mr-4 rounded">
-                            <img src="${state.user.lv >= 3 ? 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101726_fkfoyi.png' : (state.user.lv === 2 ? 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101700_gcnz2d.png' : 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928549/Screenshot_2026-05-28_073257_nougab.png')}" class="w-full h-full object-cover">
+                            <img src="${getClassIllustration()}" class="w-full h-full object-cover">
                         </div>
                         <div class="flex-grow flex flex-col justify-center">
                             <h2 class="text-white pixel-text mb-3" style="font-size: 12px;">LV. ${state.user.lv} ${state.user.characterClass}</h2>
@@ -1059,7 +1105,44 @@
                     ${renderCheatCode()}
                 </div>
             `,
-            shop: () => `
+            shop: () => {
+                const now = Date.now();
+                const isShopLocked = state.activeConsequence && 
+                    state.activeConsequence.type === 'shop_lock' && 
+                    state.activeConsequence.expiresAt > now && 
+                    state.activeConsequence.active;
+
+                if (isShopLocked) {
+                    const diff = state.activeConsequence.expiresAt - now;
+                    const hours = Math.floor(diff / (1000 * 60 * 60));
+                    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+                    const remainingTimeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+                    return `
+                        <div class="h-full flex flex-col items-center justify-center p-6 text-center bg-black/90 border-4 border-[#8B0000] rounded-xl relative overflow-hidden" style="min-height: 480px;">
+                            <!-- Closed Curtains Graphic Layer -->
+                            <div class="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-[#4a0e17] to-[#1a0508] border-b-8 border-black flex justify-between px-6 z-10">
+                                <div class="w-12 h-full bg-[#300a10] border-r-4 border-black/50 shadow-inner rounded-b-xl"></div>
+                                <div class="w-12 h-full bg-[#300a10] border-l-4 border-black/50 shadow-inner rounded-b-xl"></div>
+                            </div>
+                            <div class="z-20 mt-16 flex flex-col items-center">
+                                <i data-lucide="lock" class="w-16 h-16 text-[#ff4d4d] mb-4 animate-bounce"></i>
+                                <h3 class="text-red-500 pixel-text uppercase mb-2" style="font-size: 11px;">Merchant Curtains Closed!</h3>
+                                <p class="text-gray-400 pixel-text mb-6 uppercase leading-relaxed" style="font-size: 7px;">
+                                    The Wandering Merchant has closed their curtains in heavy disappointment due to thy failures! All item interactions are locked down.
+                                </p>
+                                <div class="bg-black/60 px-4 py-3 border-2 border-[#8B0000] rounded inline-block shadow-2xl">
+                                    <p class="text-yellow-500 pixel-text uppercase mb-1" style="font-size: 6px;">SHOP REOPENS IN:</p>
+                                    <p class="text-white pixel-text tracking-wider" style="font-size: 11px;">${remainingTimeStr}</p>
+                                </div>
+                            </div>
+                            <div class="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#111] to-[#1a1a1a] pointer-events-none"></div>
+                        </div>
+                    `;
+                }
+
+                return `
                 <div class="space-y-6">
                     <div>
                         <h3 class="text-[#d8973c] pixel-text mb-4 flex items-center" style="font-size: 10px;">
@@ -1113,30 +1196,13 @@
                             <i data-lucide="crown" class="w-5 h-5 mr-3"></i>LEGENDARY CLASSES
                          </h3>
                          <div class="space-y-3">
-                            ${shopItems.classes.map(cls => `
-                                <div class="retro-card p-3 flex items-center gap-4 ${state.inventory.includes(cls.name) ? 'opacity-60 grayscale' : ''}">
-                                    <div class="w-16 h-16 bg-black border-4 border-black rounded flex items-center justify-center">
-                                        <i data-lucide="${cls.icon}" class="w-8 h-8 text-blue-400"></i>
-                                    </div>
-                                    <div class="flex-grow">
-                                        <p class="text-white pixel-text font-bold" style="font-size: 8px;">${cls.name}</p>
-                                        <p class="text-gray-400 pixel-text mt-1" style="font-size: 6px;">${cls.desc}</p>
-                                    </div>
-                                    <button 
-                                        onclick="buyItem('${cls.name}', ${cls.price})" 
-                                        class="bg-[#412ba1] border-4 border-black px-4 py-3 text-white pixel-text shadow-lg transform transition-all duration-100 active:scale-85 active:opacity-90 w-24" 
-                                        style="font-size: 7px;"
-                                        ${state.inventory.includes(cls.name) ? 'disabled' : ''}
-                                    >
-                                        ${state.inventory.includes(cls.name) ? 'OWNED' : `${cls.price} 💎`}
-                                    </button>
-                                </div>
-                            `).join('')}
+                            ${window.renderShopClasses()}
                          </div>
                     </div>
                     ${renderCheatCode()}
                 </div>
-            `,
+                `;
+            },
             setup: () => `
                 <div class="space-y-6">
                     <h2 class="text-center text-white pixel-text text-xl mb-4">CONFIGURATION</h2>
@@ -1144,7 +1210,7 @@
                     <div class="p-6 retro-card text-center">
                         <h3 class="text-[#d8973c] pixel-text mb-6 text-left" style="font-size: 10px;"><i data-lucide="user" class="inline w-4 h-4 mr-2"></i>ADVENTURER PROFILE</h3>
                         <div class="w-32 h-32 bg-black border-4 border-black mx-auto mb-6">
-                            <img src="https://res.cloudinary.com/ddf5woswa/image/upload/v1779928549/Screenshot_2026-05-28_073257_nougab.png" class="w-full h-full object-cover">
+                            <img src="${getClassIllustration()}" class="w-full h-full object-cover">
                         </div>
                         <p class="text-gray-400 pixel-text mb-2 text-left" style="font-size: 8px;">CURRENT ALIAS (MAX 10)</p>
                         <input id="setup-name-input" type="text" maxlength="10" 
@@ -1206,7 +1272,7 @@
                                       <!-- Boss Area -->
                         <div class="relative z-10 w-full flex flex-col items-center">
                             <div class="bg-black/60 border-2 border-black px-4 py-2 mb-2">
-                                <p class="text-white pixel-text" style="font-size: 6px; letter-spacing: 1px;">${state.user.lv >= 3 ? 'THE LEVIATHAN' : (state.user.lv >= 2 ? 'PHANTOM ENEMY' : 'THE SLOUCHING CLOCKWORK')}</p>
+                                <p class="text-white pixel-text" style="font-size: 6px; letter-spacing: 1px;">${state.user.lv >= 3 ? 'THE STAGE-BLIGHT LEVIATHAN' : (state.user.lv >= 2 ? 'THE PAGE-BOUND PHANTOM' : 'THE SLOUCHING CLOCKWORK')}</p>
                             </div>
                             <div class="w-full max-w-[280px] h-4 bg-black border-4 border-black mb-4">
                                 <div id="boss-hp-fill" class="h-full bg-[#ff4d4d] transition-all duration-300" style="width: ${(state.battle.bossHp / (state.user.lv >= 3 ? 1000 : (state.user.lv >= 2 ? 300 : 120))) * 100}%"></div>
@@ -1217,7 +1283,7 @@
                      <!-- Hero Area -->
                         <div class="relative z-10 w-full flex flex-col items-center">
                              <div class="relative">
-                                <img id="hero-sprite" src="${state.user.lv >= 2 ? 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101652_gfsyej.png' : 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_175137-Photoroom_ec2jpe.png'}" class="w-28 h-28 object-contain transition-all duration-100">
+                                <img id="hero-sprite" src="${getInitialBattleHeroSprite()}" class="w-28 h-28 object-contain transition-all duration-100">
                                 
                                 ${state.user.upgrades && state.user.upgrades.runicShield ? `
                                     <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -1266,6 +1332,174 @@
 
         };
 
+        function getMaxHp() {
+            let base = 100;
+            const cls = state.user.characterClass || "ROGUE";
+            const lv = state.user.lv || 1;
+            if (cls === "ROGUE") {
+                if (lv === 1) base = 100;
+                else if (lv === 2) base = 150;
+                else base = 200;
+            } else if (cls === "MAGE") {
+                base = 80 + (lv - 1) * 20;
+            } else if (cls === "KNIGHT") {
+                base = 200 + (lv - 1) * 40;
+            }
+            if (state.user.upgrades && state.user.upgrades.runicShield) {
+                base += 50;
+            }
+            return base;
+        }
+
+        function getBaseDmg() {
+            const cls = state.user.characterClass || "ROGUE";
+            const lv = state.user.lv || 1;
+            if (cls === "ROGUE") {
+                if (lv === 1) return 10;
+                else if (lv === 2) return 30;
+                else return 40;
+            } else if (cls === "MAGE") {
+                return 40 + (lv - 1) * 30;
+            } else if (cls === "KNIGHT") {
+                return 10 + (lv - 1) * 10;
+            }
+            return 10;
+        }
+
+        function getClassIllustration() {
+            const cls = state.user.characterClass || "ROGUE";
+            if (cls === "MAGE") {
+                return "https://res.cloudinary.com/ddf5woswa/image/upload/v1780025379/Screenshot_2026-05-29_102142_rghish.png";
+            } else if (cls === "KNIGHT") {
+                return "https://res.cloudinary.com/ddf5woswa/image/upload/v1780025379/Screenshot_2026-05-29_102907_orqzjr.png";
+            } else {
+                if (state.user.lv >= 3) {
+                    return "https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101726_fkfoyi.png";
+                } else if (state.user.lv === 2) {
+                    return "https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101700_gcnz2d.png";
+                } else {
+                    return "https://res.cloudinary.com/ddf5woswa/image/upload/v1779928549/Screenshot_2026-05-28_073257_nougab.png";
+                }
+            }
+        }
+
+        function getInitialBattleHeroSprite() {
+            const cls = state.user.characterClass || "ROGUE";
+            if (cls === "MAGE") {
+                return 'https://res.cloudinary.com/ddf5woswa/image/upload/v1780034299/Screenshot_2026-05-29_125538_cuczwv.png';
+            } else if (cls === "KNIGHT") {
+                return 'https://res.cloudinary.com/ddf5woswa/image/upload/v1780025455/Screenshot_2026-05-29_102752_bnv1h3.png';
+            } else {
+                return state.user.lv >= 2 ? 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101652_gfsyej.png' : 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_175137-Photoroom_ec2jpe.png';
+            }
+        }
+
+        window.equipClass = function(clsId) {
+            sound.playSound('click');
+            if (clsId === 'rogue') {
+                state.user.characterClass = 'ROGUE';
+                state.user.maxHp = getMaxHp();
+                showToast("EQUIPPED: THE ROGUE");
+            } else if (clsId === 'knight') {
+                if (!state.inventory.includes("THE KNIGHT")) return;
+                state.user.characterClass = 'KNIGHT';
+                state.user.maxHp = getMaxHp();
+                showToast("EQUIPPED: THE KNIGHT");
+            } else if (clsId === 'mage') {
+                if (!state.inventory.includes("THE MAGE")) return;
+                state.user.characterClass = 'MAGE';
+                state.user.maxHp = getMaxHp();
+                showToast("EQUIPPED: THE MAGE");
+            }
+            updateHeader();
+            updateFirebase();
+            switchScreen('shop');
+        };
+
+        window.renderShopClasses = function() {
+            const list = [];
+            
+            list.push({
+                id: 'knight',
+                name: "THE KNIGHT",
+                price: 500,
+                icon: "shield",
+                desc: "Bonus: Knight starts battle with high HP. Combat passive reflects monster end-of-turn damage x2."
+            });
+            list.push({
+                id: 'mage',
+                name: "THE MAGE",
+                price: 750,
+                icon: "sparkles",
+                desc: "Bonus: High scaling DMG. Reduces starting monster HP to 75% (50% with Poison Vial)."
+            });
+            
+            const activeClass = state.user.characterClass || 'ROGUE';
+            if (activeClass !== 'ROGUE') {
+                list.unshift({
+                    id: 'rogue',
+                    name: "THE ROGUE",
+                    price: 0,
+                    icon: "swords",
+                    desc: "Base class: Flexible agile survivor with standard leveling scaling."
+                });
+            }
+
+            return list.map(cls => {
+                const isRogue = cls.id === 'rogue';
+                const isOwned = isRogue || state.inventory.includes(cls.name);
+                const isEquipped = activeClass === cls.id.toUpperCase();
+                
+                let buttonHtml = '';
+                if (isEquipped) {
+                    buttonHtml = `
+                        <button 
+                            disabled 
+                            class="bg-[#2e5e3b] border-4 border-[#1c3a25] px-4 py-3 text-[#7effa7] pixel-text shadow-lg opacity-80 w-24" 
+                            style="font-size: 7px;"
+                        >
+                            EQUIPPED
+                        </button>
+                    `;
+                } else if (isOwned) {
+                    buttonHtml = `
+                        <button 
+                            onclick="window.equipClass('${cls.id}')" 
+                            class="bg-[#d8973c] border-4 border-black px-4 py-3 text-white pixel-text shadow-lg transform transition-all duration-100 active:scale-85 active:opacity-90 w-24" 
+                            style="font-size: 7px;"
+                        >
+                            EQUIP
+                        </button>
+                    `;
+                } else {
+                    buttonHtml = `
+                        <button 
+                            onclick="buyItem('${cls.name}', ${cls.price})" 
+                            class="bg-[#412ba1] border-4 border-black px-4 py-3 text-white pixel-text shadow-lg transform transition-all duration-100 active:scale-85 active:opacity-90 w-24" 
+                            style="font-size: 7px;"
+                        >
+                            ${cls.price} 💎
+                        </button>
+                    `;
+                }
+
+                const cardClass = isEquipped ? 'border-green-500 bg-black/40' : '';
+
+                return `
+                    <div id="class-card-${cls.id}" class="retro-card p-3 flex items-center gap-4 ${cardClass}">
+                        <div class="w-16 h-16 bg-black border-4 border-black rounded flex items-center justify-center">
+                            <i data-lucide="${cls.icon}" class="w-8 h-8 text-blue-400"></i>
+                        </div>
+                        <div class="flex-grow">
+                            <p class="text-white pixel-text font-bold" style="font-size: 8px;">${cls.name}</p>
+                            <p class="text-gray-400 pixel-text mt-1" style="font-size: 6px;">${cls.desc}</p>
+                        </div>
+                        ${buttonHtml}
+                    </div>
+                `;
+            }).join('');
+        };
+
         const shopItems = {
             boosts: [
                 { name: "XP FLASK", price: 50, icon: "flask-conical", rarity: "Common" },
@@ -1285,6 +1519,200 @@
         };
 
         // --- Core Functions ---
+        function triggerNegativeConsequence(level) {
+            const now = Date.now();
+            if (!state.activeConsequence) {
+                state.activeConsequence = {};
+            }
+            
+            if (level === 1) {
+                state.activeConsequence = {
+                    type: 'smoke',
+                    level: 1,
+                    triggeredAt: now,
+                    expiresAt: now + (6 * 60 * 60 * 1000), // 6 hours
+                    active: true
+                };
+                showToast("SLOUCHING CLOCKWORK UNLEASHES SMOKE MIST!");
+            } else if (level === 2) {
+                state.activeConsequence = {
+                    type: 'shop_lock',
+                    level: 2,
+                    triggeredAt: now,
+                    expiresAt: now + (12 * 60 * 60 * 1000), // 12 hours
+                    active: true
+                };
+                showToast("WANDERING MERCHANT CURTAINS CLOSED!");
+            } else if (level === 3) {
+                const goldDevoured = Math.min(state.user.cr, 50);
+                state.user.cr -= goldDevoured;
+                
+                const midnight = new Date();
+                midnight.setHours(24, 0, 0, 0);
+                
+                state.activeConsequence = {
+                    type: 'leviathan_penalty',
+                    level: 3,
+                    triggeredAt: now,
+                    freezeExpiresAt: now + (24 * 60 * 60 * 1000), // 24 hours
+                    redTintExpiresAt: midnight.getTime(),
+                    active: true
+                };
+                showToast("LV3: 50 GOLD LOST & STREAK COUNTER FROZEN!");
+            }
+            
+            updateFirebase();
+            updateConsequenceWarningBanner();
+            applyLighting();
+            switchScreen(state.currentScreen, true);
+        }
+
+        function updateConsequenceWarningBanner() {
+            const banner = document.getElementById('consequence-warning-banner');
+            if (!banner) return;
+            
+            const now = Date.now();
+            const active = state.activeConsequence && state.activeConsequence.active;
+            
+            let isSmokeActive = active && state.activeConsequence.type === 'smoke' && state.activeConsequence.expiresAt > now;
+            let isShopLockActive = active && state.activeConsequence.type === 'shop_lock' && state.activeConsequence.expiresAt > now;
+            let isLeviathanActive = active && state.activeConsequence.type === 'leviathan_penalty' && (state.activeConsequence.freezeExpiresAt > now || state.activeConsequence.redTintExpiresAt > now);
+            
+            if (isSmokeActive) {
+                const diff = state.activeConsequence.expiresAt - now;
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const secs = Math.floor((diff % (1000 * 60)) / 1000);
+                const remainingTimeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                
+                banner.className = "bg-[#4a4a4a] border-b-4 border-black px-4 py-2 flex items-center justify-between text-white z-40 shrink-0";
+                banner.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="cloud-fog" class="w-4 h-4 text-gray-400 animate-pulse"></i>
+                        <p class="pixel-text font-bold uppercase text-[5px] sm:text-[6px] tracking-tight">
+                            MIST ACTIVE: "THE SLOUCHING CLOCKWORK" CLOGS DASHBOARD!
+                        </p>
+                    </div>
+                    <p class="pixel-text text-red-400 font-bold uppercase text-[5px] sm:text-[6px] ml-2 shrink-0">
+                        ${remainingTimeStr}
+                    </p>
+                `;
+                banner.style.display = "flex";
+                lucide.createIcons();
+            } else if (isShopLockActive) {
+                const diff = state.activeConsequence.expiresAt - now;
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const secs = Math.floor((diff % (1000 * 60)) / 1000);
+                const remainingTimeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                
+                banner.className = "bg-[#8B0000] border-b-4 border-black px-4 py-2 flex items-center justify-between text-white z-40 shrink-0";
+                banner.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="lock" class="w-4 h-4 text-[#ff4d4d] animate-pulse"></i>
+                        <p class="pixel-text font-bold uppercase text-[5px] sm:text-[6px] tracking-tight text-red-200">
+                            LOCKOUT: "THE PAGE-BOUND PHANTOM" REJECTS MERCHANT!
+                        </p>
+                    </div>
+                    <p class="pixel-text text-yellow-300 font-bold uppercase text-[5px] sm:text-[6px] ml-2 shrink-0">
+                        ${remainingTimeStr}
+                    </p>
+                `;
+                banner.style.display = "flex";
+                lucide.createIcons();
+            } else if (isLeviathanActive) {
+                const diff = state.activeConsequence.freezeExpiresAt - now;
+                const hours = Math.max(0, Math.floor(diff / (1000 * 60 * 60)));
+                const mins = Math.max(0, Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)));
+                const secs = Math.max(0, Math.floor((diff % (1000 * 60)) / 1000));
+                const remainingTimeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                
+                banner.className = "bg-[#ff4d4d] border-b-4 border-black px-4 py-2 flex items-center justify-between text-black z-40 animate-pulse shrink-0";
+                banner.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="skull" class="w-4 h-4 text-black"></i>
+                        <p class="pixel-text font-bold uppercase text-[5px] sm:text-[6px] tracking-tight text-black">
+                            BLIGHT: "THE STAGE-BLIGHT LEVIATHAN" CORRUPTS AREA!
+                        </p>
+                    </div>
+                    <p class="pixel-text text-black font-bold uppercase text-[5px] sm:text-[6px] ml-2 shrink-0">
+                        FREEZE: ${remainingTimeStr}
+                    </p>
+                `;
+                banner.style.display = "flex";
+                lucide.createIcons();
+            } else {
+                banner.style.display = "none";
+                banner.innerHTML = "";
+            }
+        }
+
+        function updateConsequencesCounter() {
+            const now = Date.now();
+            let needsRerender = false;
+            
+            if (state.activeConsequence && state.activeConsequence.active) {
+                const type = state.activeConsequence.type;
+                let isExpired = false;
+                
+                if (type === 'smoke' || type === 'shop_lock') {
+                    if (now >= state.activeConsequence.expiresAt) {
+                        isExpired = true;
+                    }
+                } else if (type === 'leviathan_penalty') {
+                    const isFreezeExpired = now >= state.activeConsequence.freezeExpiresAt;
+                    const isRedTintExpired = now >= state.activeConsequence.redTintExpiresAt;
+                    if (isFreezeExpired && isRedTintExpired) {
+                        isExpired = true;
+                    }
+                }
+                
+                if (isExpired) {
+                    state.activeConsequence.active = false;
+                    needsRerender = true;
+                    updateFirebase();
+                    showToast("ENEMY CONSEQUENCE CLEARED!");
+                } else {
+                    if (state.currentScreen === 'arena' && type === 'smoke') {
+                        needsRerender = true;
+                    } else if (state.currentScreen === 'shop' && type === 'shop_lock') {
+                        needsRerender = true;
+                    } else if (type === 'leviathan_penalty') {
+                        needsRerender = true;
+                    }
+                }
+            }
+            
+            // Sync red tint layout overlay state
+            const redTint = document.getElementById('leviathan-red-tint');
+            if (redTint) {
+                const isLeviathanActive = state.activeConsequence && 
+                    state.activeConsequence.type === 'leviathan_penalty' && 
+                    state.activeConsequence.redTintExpiresAt > now && 
+                    state.activeConsequence.active;
+                if (isLeviathanActive) {
+                    redTint.classList.remove('hidden');
+                } else {
+                    redTint.classList.add('hidden');
+                }
+            }
+
+            if (needsRerender) {
+                const isInputActive = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+                if (!isInputActive) {
+                    const content = document.getElementById('app-content');
+                    if (content && typeof templates[state.currentScreen] === 'function') {
+                        const scrollTop = content.scrollTop;
+                        content.innerHTML = templates[state.currentScreen]();
+                        lucide.createIcons();
+                        content.scrollTop = scrollTop;
+                    }
+                }
+            }
+            updateConsequenceWarningBanner();
+            applyLighting();
+        }
+
         function toggleLighting() {
             state.settings.lightMode = !state.settings.lightMode;
             applyLighting();
@@ -1295,14 +1723,27 @@
         function applyLighting() {
             const container = document.querySelector('.relative.w-full.max-w-\\[480px\\]');
             if (container) {
-                if (state.settings.lightMode) {
+                const now = Date.now();
+                const isLeviathanActive = state.activeConsequence && 
+                    state.activeConsequence.type === 'leviathan_penalty' && 
+                    state.activeConsequence.redTintExpiresAt > now && 
+                    state.activeConsequence.active;
+
+                if (isLeviathanActive) {
+                    container.classList.remove('light-mode');
+                    container.style.filter = '';
+                    container.style.backgroundColor = '#4e0b12';
+                    container.style.boxShadow = 'inset 0 0 80px rgba(255, 0, 0, 0.4), 0 0 30px rgba(255, 0, 0, 0.3)';
+                } else if (state.settings.lightMode) {
                     container.classList.add('light-mode');
                     container.style.filter = 'brightness(1.05) contrast(1.05)';
                     container.style.backgroundColor = '#fdfbf7';
+                    container.style.boxShadow = '';
                 } else {
                     container.classList.remove('light-mode');
                     container.style.filter = '';
                     container.style.backgroundColor = '#1a1a1a';
+                    container.style.boxShadow = '';
                 }
             }
         }
@@ -1369,6 +1810,18 @@
             if (classText) {
                 classText.innerHTML = `LV. <span id="header-lv">${state.user.lv}</span> ${state.user.characterClass}`;
             }
+
+            const headerAvatar = document.getElementById('header-avatar');
+            if (headerAvatar) {
+                const cls = state.user.characterClass || "ROGUE";
+                if (cls === "MAGE") {
+                    headerAvatar.src = "https://res.cloudinary.com/ddf5woswa/image/upload/v1780026692/Screenshot_2026-05-29_105059_h2fngl.png";
+                } else if (cls === "KNIGHT") {
+                    headerAvatar.src = "https://res.cloudinary.com/ddf5woswa/image/upload/v1780026692/Screenshot_2026-05-29_104940_ijpoch.png";
+                } else {
+                    headerAvatar.src = "https://res.cloudinary.com/ddf5woswa/image/upload/v1779928549/Screenshot_2026-05-28_073309_xm4uic.png";
+                }
+            }
             
             // Calculate progress relative to current cap
             let xpProgress = 0;
@@ -1404,6 +1857,10 @@
 
         function showToast(message) {
             const container = document.getElementById('toast-container');
+            if (!container) {
+                console.log("Toast (no container):", message);
+                return;
+            }
             const toast = document.createElement('div');
             toast.className = 'toast pixel-text';
             toast.style.fontSize = '8px';
@@ -1632,7 +2089,15 @@
 
                 if (state.user.completed === 3) {
                     state.user.cr += Math.floor(20 * streakBonus);
-                    state.user.streak += 1;
+                    const isStreakFrozen = state.activeConsequence && 
+                        state.activeConsequence.type === 'leviathan_penalty' && 
+                        state.activeConsequence.freezeExpiresAt > Date.now() && 
+                        state.activeConsequence.active;
+                    if (!isStreakFrozen) {
+                        state.user.streak += 1;
+                    } else {
+                        showToast("STREAK FREEZE ACTIVE: STREAK NOT INCREMENTED");
+                    }
                     state.user.counters.perfectDayStreak++;
                     showToast("PERFECT DAY BONUS!");
                 }
@@ -1715,7 +2180,13 @@
                 // Trigger perfect day bonus if all ticked
                 if (state.user.completed === 3) {
                     state.user.cr += 20;
-                    state.user.streak += 1;
+                    const isStreakFrozen = state.activeConsequence && 
+                        state.activeConsequence.type === 'leviathan_penalty' && 
+                        state.activeConsequence.freezeExpiresAt > Date.now() && 
+                        state.activeConsequence.active;
+                    if (!isStreakFrozen) {
+                        state.user.streak += 1;
+                    }
                     state.user.counters.perfectDayStreak++;
                     showToast("CHEAT ACTIVE: ALL HABITS COMPLETE!");
                 }
@@ -1752,17 +2223,7 @@
                 showToast(`LEVEL UP! REACHED LV. ${state.user.lv}`);
                 sound.playSound('complete');
                 
-                // Maximum health scale adjustments immediately following reward
-                if (state.user.lv === 1) state.user.maxHp = 100;
-                else if (state.user.lv === 2) state.user.maxHp = 150;
-                else if (state.user.lv === 3) state.user.maxHp = 200;
-
-                if (state.inventory.includes("THE KNIGHT")) {
-                    state.user.maxHp += 50;
-                }
-                if (state.user.upgrades && state.user.upgrades.runicShield) {
-                    state.user.maxHp += 50;
-                }
+                state.user.maxHp = getMaxHp();
             }
         }
 
@@ -1782,10 +2243,10 @@
             // Class & Upgrades Logic
             if (name === "THE KNIGHT") {
                 state.user.characterClass = "KNIGHT";
-                state.user.maxHp = 150;
+                state.user.maxHp = getMaxHp();
             } else if (name === "THE MAGE") {
                 state.user.characterClass = "MAGE";
-                state.user.critBonus = 10;
+                state.user.maxHp = getMaxHp();
             } else if (name === "PURPLE FLAME") {
                 state.user.upgrades.purpleFlame = true;
             } else if (name === "WHITE NAIL") {
@@ -1847,8 +2308,30 @@
 
             sound.startBattleMusic();
 
+            const maxBossHp = lv >= 3 ? 1000 : (lv >= 2 ? 300 : 120);
+            let bossStartingHp = maxBossHp;
+
+            if (state.user.characterClass === "MAGE") {
+                if (state.inventory.includes("POISON VIAL")) {
+                    bossStartingHp = Math.floor(maxBossHp * 0.50);
+                    showToast("MAGE PASSIVE OVERRIDDEN BY POISON VIAL! BOSS HP SHRUNK TO 50%");
+                    state.inventory = state.inventory.filter(item => item !== "POISON VIAL");
+                    updateFirebase();
+                } else {
+                    bossStartingHp = Math.floor(maxBossHp * 0.75);
+                    showToast("MAGE PASSIVE ACTIVATED! BOSS HP REDUCED TO 75%");
+                }
+            } else {
+                if (state.inventory.includes("POISON VIAL")) {
+                    bossStartingHp = Math.floor(maxBossHp * 0.50);
+                    showToast("POISON VIAL USED! BOSS HP HALVED");
+                    state.inventory = state.inventory.filter(item => item !== "POISON VIAL");
+                    updateFirebase();
+                }
+            }
+
             state.battle = { 
-                bossHp: lv >= 3 ? 1000 : (lv >= 2 ? 300 : 120), 
+                bossHp: bossStartingHp, 
                 playerHp: state.user.maxHp, 
                 turn: 1,
                 sliderPos: 0,
@@ -1860,109 +2343,107 @@
                 animIntervals: []
             };
 
-            // Poison Vial Logic
-            if (state.inventory.includes("POISON VIAL")) {
-                state.battle.bossHp = Math.floor(state.battle.bossHp / 2);
-                showToast("POISON VIAL USED! BOSS HP HALVED");
-                // Remove from inventory so it can be bought again
-                state.inventory = state.inventory.filter(item => item !== "POISON VIAL");
-                updateFirebase();
-            }
-
             document.body.insertAdjacentHTML('beforeend', templates.battle());
             lucide.createIcons();
 
             const heroSprite = document.getElementById('hero-sprite');
             const bossSprite = document.getElementById('boss-sprite');
 
-            // Level 3 Animations
-            if (lv >= 3) {
-                const heroImages = [
-                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101711_epudh2.png',
-                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101726_fkfoyi.png'
+            if (heroSprite) {
+                const activeClass = state.user.characterClass || "ROGUE";
+                if (activeClass === "ROGUE") {
+                    const lv = state.user.lv || 1;
+                    if (lv === 1) {
+                        heroSprite.style.transform = "scale(1.0)";
+                    } else if (lv === 2) {
+                        heroSprite.style.transform = "scale(1.25)";
+                    } else if (lv >= 3) {
+                        heroSprite.style.transform = "scale(1.50)";
+                    }
+                } else {
+                    heroSprite.style.transform = "scale(1.0)";
+                }
+            }
+
+            let heroImages = [];
+            const cls = state.user.characterClass || "ROGUE";
+            if (cls === "MAGE") {
+                heroImages = [
+                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1780034299/Screenshot_2026-05-29_125538_cuczwv.png',
+                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1780034298/Screenshot_2026-05-29_125555_cjwp7p.png'
                 ];
-                const bossImages = [
+            } else if (cls === "KNIGHT") {
+                heroImages = [
+                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1780025455/Screenshot_2026-05-29_102752_bnv1h3.png',
+                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1780025453/Screenshot_2026-05-29_102805_jjbuip.png'
+                ];
+            } else {
+                if (lv >= 3) {
+                    heroImages = [
+                        'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101711_epudh2.png',
+                        'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101726_fkfoyi.png'
+                    ];
+                } else if (lv === 2) {
+                    heroImages = [
+                        'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101652_gfsyej.png',
+                        'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101700_gcnz2d.png'
+                    ];
+                } else {
+                    heroImages = [
+                        "https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_175137-Photoroom_ec2jpe.png",
+                        "https://res.cloudinary.com/ddf5woswa/image/upload/v1779928345/Screenshot_2026-05-26_235703-Photoroom_augdec.png"
+                    ];
+                }
+            }
+
+            let bossImages = [];
+            if (lv >= 3) {
+                bossImages = [
                     'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_012314_ssyt7f.png',
                     'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_012255_i0v0cm.png',
                     'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928345/Screenshot_2026-05-27_012305_z56rsx.png'
                 ];
-
-                let heroIdx = 0;
-                const heroInt = setInterval(() => {
-                    if (!document.getElementById('battle-screen')) return;
-                    heroIdx = (heroIdx + 1) % heroImages.length;
-                    if (heroSprite) heroSprite.src = heroImages[heroIdx];
-                }, 2000);
-
-                let bossIdx = 0;
-                const bossInt = setInterval(() => {
-                    if (!document.getElementById('battle-screen')) return;
-                    bossIdx = (bossIdx + 1) % bossImages.length;
-                    if (bossSprite) bossSprite.src = bossImages[bossIdx];
-                }, 2000);
-
-                state.battle.animIntervals.push(heroInt, bossInt);
-            } 
-            // Level 2 Animations
-            else if (lv === 2) {
-                const heroSprite = document.getElementById('hero-sprite');
-                const bossSprite = document.getElementById('boss-sprite');
-                
-                const heroImages = [
-                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101652_gfsyej.png',
-                    'https://res.cloudinary.com/ddf5woswa/image/upload/v1779938346/Screenshot_2026-05-28_101700_gcnz2d.png'
-                ];
-                const bossImages = [
+            } else if (lv === 2) {
+                bossImages = [
                     'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928345/Screenshot_2026-05-27_012218-Photoroom_sw5rm8.png',
                     'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928345/Screenshot_2026-05-27_012211-Photoroom_kr2ghq.png',
                     'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928345/Screenshot_2026-05-27_012203-Photoroom_qshgbg.png'
                 ];
-
-                let heroIdx = 0;
-                const heroInt = setInterval(() => {
-                    if (!document.getElementById('battle-screen')) return;
-                    heroIdx = (heroIdx + 1) % heroImages.length;
-                    if (heroSprite) heroSprite.src = heroImages[heroIdx];
-                }, 800);
-
-                let bossIdx = 0;
-                const bossInt = setInterval(() => {
-                    if (!document.getElementById('battle-screen')) return;
-                    bossIdx = (bossIdx + 1) % bossImages.length;
-                    if (bossSprite) bossSprite.src = bossImages[bossIdx];
-                }, 500);
-
-                state.battle.animIntervals.push(heroInt, bossInt);
             } else {
-                const heroSprite = document.getElementById('hero-sprite');
-                const bossSprite = document.getElementById('boss-sprite');
-                
-                const heroImages = [
-                    "https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_175137-Photoroom_ec2jpe.png",
-                    "https://res.cloudinary.com/ddf5woswa/image/upload/v1779928345/Screenshot_2026-05-26_235703-Photoroom_augdec.png"
-                ];
-                const bossImages = [
+                bossImages = [
                     "https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_012139_rttg0t.png",
                     "https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_012155_xh8hzq.png",
                     "https://res.cloudinary.com/ddf5woswa/image/upload/v1779928345/Screenshot_2026-05-27_012149_o3mlcn.png"
                 ];
-
-                let heroIdx = 0;
-                const heroInt = setInterval(() => {
-                    if (!document.getElementById('battle-screen')) return;
-                    heroIdx = (heroIdx + 1) % heroImages.length;
-                    if (heroSprite) heroSprite.src = heroImages[heroIdx];
-                }, 800);
-
-                let bossIdx = 0;
-                const bossInt = setInterval(() => {
-                    if (!document.getElementById('battle-screen')) return;
-                    bossIdx = (bossIdx + 1) % bossImages.length;
-                    if (bossSprite) bossSprite.src = bossImages[bossIdx];
-                }, 800);
-
-                state.battle.animIntervals.push(heroInt, bossInt);
             }
+
+            let heroIntervalTime = 800;
+            let bossIntervalTime = 800;
+            if (cls === "ROGUE") {
+                if (lv >= 3) {
+                    heroIntervalTime = 2000;
+                    bossIntervalTime = 2000;
+                } else if (lv === 2) {
+                    heroIntervalTime = 800;
+                    bossIntervalTime = 500;
+                }
+            }
+
+            let heroIdx = 0;
+            const heroInt = setInterval(() => {
+                if (!document.getElementById('battle-screen')) return;
+                heroIdx = (heroIdx + 1) % heroImages.length;
+                if (heroSprite) heroSprite.src = heroImages[heroIdx];
+            }, heroIntervalTime);
+
+            let bossIdx = 0;
+            const bossInt = setInterval(() => {
+                if (!document.getElementById('battle-screen')) return;
+                bossIdx = (bossIdx + 1) % bossImages.length;
+                if (bossSprite) bossSprite.src = bossImages[bossIdx];
+            }, bossIntervalTime);
+
+            state.battle.animIntervals.push(heroInt, bossInt);
         }
 
         function battleAction(action) {
@@ -2077,7 +2558,7 @@
                 msg = "MISS!";
             }
 
-            const baseDmg = state.user.lv >= 3 ? 40 : (state.user.lv >= 2 ? 30 : 10);
+            const baseDmg = getBaseDmg();
             let finalBaseDmg = baseDmg;
             if (state.user.upgrades && state.user.upgrades.whiteNail) {
                 finalBaseDmg += 10;
@@ -2142,15 +2623,44 @@
                 
                 const bossDmg = state.user.lv >= 3 ? (Math.floor(Math.random() * 11) + 15) : (state.user.lv >= 2 ? (Math.floor(Math.random() * 11) + 5) : (Math.floor(Math.random() * 3) + 3)); 
                 state.battle.playerHp -= bossDmg;
+
+                // KNIGHT PASSIVE DAMAGE REFLECT
+                let reflectDmg = 0;
+                if (state.user.characterClass === "KNIGHT") {
+                    reflectDmg = bossDmg * 2;
+                    state.battle.bossHp -= reflectDmg;
+                    if (state.battle.bossHp < 0) state.battle.bossHp = 0;
+                    
+                    // Shake and flash boss to show damage reflected
+                    if (bossSprite) {
+                        bossSprite.style.filter = 'brightness(2) contrast(2)';
+                        bossSprite.classList.add('animate-ping');
+                        setTimeout(() => {
+                            bossSprite.style.filter = '';
+                            bossSprite.classList.remove('animate-ping');
+                        }, 200);
+                    }
+                    showToast(`KNIGHT REFLECTED ${reflectDmg} DMG!`);
+                }
+
                 if (state.battle.playerHp <= 0) {
                     state.battle.playerHp = 0;
                     const hpFill = document.getElementById('hero-hp-fill');
                     if (hpFill) hpFill.style.width = '0%';
                     setTimeout(gameOver, 500);
+                } else if (state.battle.bossHp <= 0) {
+                    state.battle.bossHp = 0;
+                    const bossHpFill = document.getElementById('boss-hp-fill');
+                    if (bossHpFill) bossHpFill.style.width = '0%';
+                    setTimeout(victory, 500);
                 } else {
                     const hpFill = document.getElementById('hero-hp-fill');
                     if (hpFill) hpFill.style.width = (state.battle.playerHp / state.user.maxHp) * 100 + '%';
                     
+                    const bossHpFill = document.getElementById('boss-hp-fill');
+                    const maxBossHp = state.user.lv >= 3 ? 1000 : (state.user.lv >= 2 ? 300 : 120);
+                    if (bossHpFill) bossHpFill.style.width = (state.battle.bossHp / maxBossHp) * 100 + '%';
+
                     // After boss finishes and player is ready for next round
                     setTimeout(() => {
                         const buttons = document.getElementById('action-buttons');
@@ -2217,10 +2727,15 @@
             sound.stopBattleMusic();
             sound.startAmbientMusic();
             clearBattleIntervals();
+            
+            // Trigger negative consequence on defeat
+            const level = state.user.lv >= 3 ? 3 : (state.user.lv >= 2 ? 2 : 1);
+            triggerNegativeConsequence(level);
+
             showModal(`
                 <h2 class="pixel-text text-red-500 mb-4">DEFEAT</h2>
                 <div class="p-6 brown-card mb-6">
-                    <p class="text-white pixel-text" style="font-size: 8px;">THE SPIRE HAS RECLAIMED YOU.</p>
+                    <p class="text-white pixel-text" style="font-size: 8px;">THE SPIRE HAS RECLAIMED YOU. ADVERSARY CONSEQUENCES APPLIED!</p>
                 </div>
                 <button onclick="closeModal(); document.querySelector('.fixed.inset-0.z-\\[150\\]').remove();" class="btn-crimson w-full py-4 text-white pixel-text">RETURN TO CAMP</button>
             `);
@@ -2433,6 +2948,9 @@
 
         function runSpireInitialization() {
             applyLighting();
+            
+            // Start live countdown updater for Level Consequence Loops
+            setInterval(updateConsequencesCounter, 1000);
 
             // Start ambient music on first user interaction
             window.addEventListener('click', () => {
