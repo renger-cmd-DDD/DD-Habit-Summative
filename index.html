@@ -15,7 +15,7 @@
     <!-- Firebase SDK via CDN -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js";
+        import { getAuth, signInWithPopup, signInWithCredential, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
 
         // Firebase Config
@@ -39,7 +39,7 @@
             console.error("Firebase init error", e);
         }
 
-        window.firebaseUtils = { auth, db, providers: { GoogleAuthProvider }, methods: { signInWithPopup, onAuthStateChanged, signOut, doc, setDoc, getDoc, updateDoc, onSnapshot } };
+        window.firebaseUtils = { auth, db, providers: { GoogleAuthProvider }, methods: { signInWithPopup, signInWithCredential, onAuthStateChanged, signOut, doc, setDoc, getDoc, updateDoc, onSnapshot } };
         window.firebaseLoaded = true;
         if (typeof window.onFirebaseLoaded === 'function') {
             window.onFirebaseLoaded();
@@ -871,6 +871,34 @@
                     alert("Firebase is not initialized. Please configure API keys.");
                     return showToast("Firebase not configured.");
                 }
+
+                // Identify if current domain is already white-listed/authorized
+                const isAuthorizedDomain = window.location.hostname === 'localhost' || 
+                                           window.location.hostname === '127.0.0.1' || 
+                                           window.location.hostname.endsWith('.run.app');
+
+                if (!isAuthorizedDomain) {
+                    console.log("Detecting unauthorized domain. Securely delegating authorization through Cloud Run Proxy.");
+                    // Dynamic configuration for this App's authorized Cloud Run URL
+                    const PROXY_AUTH_URL = "https://ais-pre-gm3jmilacyzdemsgaigkjb-386066285776.asia-southeast1.run.app";
+                    const popupUrl = PROXY_AUTH_URL + "?proxy_login=true&origin=" + encodeURIComponent(window.location.origin);
+                    
+                    const popupWidth = 480;
+                    const popupHeight = 620;
+                    const left = (window.screen.width - popupWidth) / 2;
+                    const top = (window.screen.height - popupHeight) / 2;
+                    
+                    const authWindow = window.open(
+                        popupUrl, 
+                        "SpireStage_Auth_Transfer", 
+                        `width=${popupWidth},height=${popupHeight},top=${top},left=${left},resizable=yes,scrollbars=yes`
+                    );
+                    
+                    if (!authWindow) {
+                        alert("POPUP BLOCKED!\n\nPlease allow popups for SpiresStage so we can securely authenticate your Google Account via the authorized gateway.");
+                    }
+                    return;
+                }
                 
                 const provider = new providers.GoogleAuthProvider();
                 
@@ -898,6 +926,38 @@
                 alert("Critical login error: " + err.message);
             }
         };
+
+        // Listen for Google Auth transfer messages from the secure gateway popup
+        window.addEventListener('message', async (event) => {
+            const PROXY_AUTH_URL = "https://ais-pre-gm3jmilacyzdemsgaigkjb-386066285776.asia-southeast1.run.app";
+            if (event.origin !== PROXY_AUTH_URL && !event.origin.endsWith('.run.app')) {
+                return;
+            }
+            
+            if (event.data && event.data.type === 'spire_proxy_auth_success') {
+                const { idToken, accessToken } = event.data;
+                console.log("Secure authentication state transferred. Initializing credential login...");
+                
+                try {
+                    const { auth, providers, methods } = window.firebaseUtils;
+                    if (!auth) throw new Error("Firebase Auth is not ready.");
+                    
+                    showToast("GATEWAY VERIFIED: LOADING ACCOUNT...");
+                    
+                    // Create Google credential using the transferred tokens safely
+                    const credential = providers.GoogleAuthProvider.credential(idToken, accessToken);
+                    
+                    // Execute native client-side sign-in with our secure credential
+                    await methods.signInWithCredential(auth, credential);
+                    
+                    showToast("SESSION COMPLETED!");
+                    setTimeout(() => window.location.reload(), 600);
+                } catch (err) {
+                    console.error("Proxy credential sign-in failure:", err);
+                    alert("Identity state verification failed: " + err.message);
+                }
+            }
+        });
 
         window.loginAsGuest = function() {
             try {
@@ -1955,9 +2015,10 @@
                     showModal(`
                         <h2 class="pixel-text mb-4">SKILL MASTERY</h2>
                         <p class="pixel-text text-gray-400 mb-4" style="font-size: 6px;">FEYNMAN TECHNIQUE: EXPLAIN TO A CHILD</p>
+                        <p class="pixel-text text-yellow-500 mb-2 animate-pulse" style="font-size: 5px;">SUPPORTED: photosynthesis, gravity, blockchain, coding, gym, habit</p>
                         <div class="space-y-2 mb-4">
-                            <input id="recall-topic" class="w-full bg-black border-2 border-[#5c3d2e] p-2 text-white pixel-text" style="font-size: 6px;" placeholder="TOPIC (e.g. Gravity, Blockchain)">
-                            <textarea id="recall-text" class="w-full h-24 bg-black border-2 border-[#5c3d2e] p-2 text-white pixel-text" style="font-size: 6px;" placeholder="EXPLAIN LIKE I'M 5..."></textarea>
+                            <input id="recall-topic" class="w-full bg-black border-2 border-[#5c3d2e] p-2 text-white pixel-text" style="font-size: 6px;" placeholder="TOPIC: e.g. Gravity, Coding">
+                            <textarea id="recall-text" class="w-full h-24 bg-black border-2 border-[#5c3d2e] p-2 text-white pixel-text" style="font-size: 6px;" placeholder="EXPLAIN LIKE I'M 5... (Uses simple words with real sentences)"></textarea>
                         </div>
                         <button onclick="checkRecallInputs()" class="btn-crimson px-6 py-4 w-full text-white pixel-text transform transition-all duration-100 active:scale-85 active:opacity-90">SUBMIT SYNTHESIS</button>
                     `);
@@ -1966,13 +2027,84 @@
         }
 
         function checkGratitudeInputs() {
-            const i1 = document.getElementById('g-1').value;
-            const i2 = document.getElementById('g-2').value;
-            const i3 = document.getElementById('g-3').value;
-            if (i1.length < 5 || i2.length < 5 || i3.length < 5) {
-                showToast("INPUTS TOO SHORT FOR AI ANALYSIS");
+            const i1 = document.getElementById('g-1').value.trim();
+            const i2 = document.getElementById('g-2').value.trim();
+            const i3 = document.getElementById('g-3').value.trim();
+
+            if (i1.length < 10 || i2.length < 10 || i3.length < 10) {
+                showToast("Gratitude points must be at least 10 characters each. Be expressive!");
                 return;
             }
+
+            const getWords = (str) => str.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).filter(Boolean);
+            const w1 = getWords(i1);
+            const w2 = getWords(i2);
+            const w3 = getWords(i3);
+
+            function isGibberish(str) {
+                const clean = str.toLowerCase().trim();
+                if (/([a-z0-9])\1{3,}/.test(clean)) return true;
+                if (clean.length < 10) return false;
+
+                const words = clean.split(/\s+/).filter(Boolean);
+                if (words.length === 0) return true;
+
+                if (words.some(w => w.length > 5 && !/[aeiouy]/.test(w))) return true;
+
+                const homeRowMash = /^[asdfghjkl;']{6,}$/;
+                const topRowMash = /^[qwertyuiop]{6,}$/;
+                const bottomRowMash = /^[zxcvbnm]{6,}$/;
+                if (words.some(w => homeRowMash.test(w) || topRowMash.test(w) || bottomRowMash.test(w))) return true;
+
+                const uniqueChars = new Set(clean.replace(/\s/g, '')).size;
+                if (uniqueChars < 6) return true;
+
+                return false;
+            }
+
+            if (isGibberish(i1) || isGibberish(i2) || isGibberish(i3)) {
+                showToast("DASHBOARD SCAN TRIGGERED: Gibberish detected. Express deep, sincere gratitude!");
+                return;
+            }
+
+            function isIrrelevant(str) {
+                const words = getWords(str);
+                const uniqueWords = new Set(words);
+                if (uniqueWords.size < 2) return true;
+
+                const appreciationKeywords = [
+                    'grateful', 'thankful', 'blessed', 'glad', 'appreciate', 'happy', 'love', 'nice',
+                    'good', 'friend', 'family', 'health', 'food', 'water', 'coffee', 'pet', 'dog', 'cat',
+                    'sun', 'nature', 'life', 'home', 'house', 'job', 'work', 'money', 'peace', 'sleep',
+                    'dream', 'warm', 'help', 'kind', 'smile', 'music', 'book', 'game', 'today', 'morning',
+                    'night', 'bed', 'weather', 'air', 'breath', 'people', 'partner', 'wifi', 'internet'
+                ];
+
+                const hasAppreciationKeyword = words.some(w => appreciationKeywords.includes(w) || appreciationKeywords.some(keyword => w.includes(keyword)));
+                if (!hasAppreciationKeyword) {
+                    return true;
+                }
+                return false;
+            }
+
+            if (isIrrelevant(i1) || isIrrelevant(i2) || isIrrelevant(i3)) {
+                showToast("Gratitude entries must be meaningful and relate to positive, real-life things!");
+                return;
+            }
+
+            const scoreSimilarity = (arr1, arr2) => {
+                const s1 = new Set(arr1);
+                const s2 = new Set(arr2);
+                const intersection = new Set([...s1].filter(x => s2.has(x)));
+                const union = new Set([...s1, ...s2]);
+                return intersection.size / union.size;
+            };
+
+            if (scoreSimilarity(w1, w2) > 0.5 || scoreSimilarity(w1, w3) > 0.5 || scoreSimilarity(w2, w3) > 0.5) {
+                showToast("Duplication alert: Please list 3 DISTINCT things you are grateful for!");
+                return;
+            }
+
             simulateVerification('phone');
         }
 
@@ -1980,29 +2112,94 @@
             const topic = document.getElementById('recall-topic').value.toLowerCase().trim();
             const text = document.getElementById('recall-text').value.trim();
             const targetArea = document.getElementById('recall-text');
-            
-            // 1. One sentence minimum (8-10 words + punctuation)
-            const sentences = text.split(/[.!?]/).filter(s => s.trim().split(/\s+/).length >= 8);
-            
-            // 2. Topic relevance keywords
+
             const dictionary = {
-                'photosynthesis': ['light', 'plant', 'sun', 'food', 'green', 'leaf', 'energy'],
-                'gravity': ['pull', 'earth', 'fall', 'mass', 'weight', 'down', 'star'],
-                'blockchain': ['block', 'chain', 'money', 'digital', 'ledger', 'safety', 'internet'],
-                'coding': ['computer', 'write', 'instruction', 'language', 'logic', 'app'],
-                'gym': ['muscle', 'lift', 'exercise', 'health', 'strong', 'run'],
-                'habit': ['repeat', 'routine', 'every day', 'small', 'goal']
+                'photosynthesis': ['light', 'plant', 'sun', 'food', 'green', 'leaf', 'energy', 'co2', 'oxygen', 'chlorophyll', 'carbon', 'dioxide', 'produce', 'make', 'eat', 'water'],
+                'gravity': ['pull', 'earth', 'fall', 'mass', 'weight', 'down', 'star', 'planet', 'center', 'ground', 'attract', 'force', 'space', 'keep'],
+                'blockchain': ['block', 'chain', 'money', 'digital', 'ledger', 'safety', 'internet', 'secure', 'record', 'network', 'coin', 'crypto', 'database', 'transaction'],
+                'coding': ['computer', 'write', 'instruction', 'language', 'logic', 'app', 'code', 'program', 'build', 'step', 'command', 'machine', 'software'],
+                'gym': ['muscle', 'lift', 'exercise', 'health', 'strong', 'run', 'train', 'weight', 'workout', 'push', 'body', 'sweat', 'fit', 'grow'],
+                'habit': ['repeat', 'routine', 'every day', 'small', 'goal', 'brain', 'pattern', 'action', 'trigger', 'reward', 'consistent', 'practice']
             };
 
-            let relevant = true;
-            if (dictionary[topic]) {
-                relevant = dictionary[topic].some(keyword => text.toLowerCase().includes(keyword));
-            }
+            const supportedTopics = Object.keys(dictionary);
 
-            if (sentences.length === 0 || !relevant) {
+            if (!supportedTopics.includes(topic)) {
                 targetArea.style.borderColor = "#ff0000";
                 targetArea.classList.add('animate-shake');
-                showToast("Explanation failed synthesis check. Be more specific!");
+                showToast(`Choose a valid topic: ${supportedTopics.join(', ').toUpperCase()}`);
+                setTimeout(() => {
+                    targetArea.style.borderColor = "#5c3d2e";
+                    targetArea.classList.remove('animate-shake');
+                }, 1000);
+                return;
+            }
+
+            if (text.length < 35) {
+                targetArea.style.borderColor = "#ff0000";
+                targetArea.classList.add('animate-shake');
+                showToast("Explanation is too short! A kid needs a clear, full description.");
+                setTimeout(() => {
+                    targetArea.style.borderColor = "#5c3d2e";
+                    targetArea.classList.remove('animate-shake');
+                }, 1000);
+                return;
+            }
+
+            // Ensure the chosen topic name is explicitly mentioned in the explanation text
+            if (!text.toLowerCase().includes(topic)) {
+                targetArea.style.borderColor = "#ff0000";
+                targetArea.classList.add('animate-shake');
+                showToast(`The topic keyword "${topic.toUpperCase()}" must be explicitly mentioned in your explanation!`);
+                setTimeout(() => {
+                    targetArea.style.borderColor = "#5c3d2e";
+                    targetArea.classList.remove('animate-shake');
+                }, 1000);
+                return;
+            }
+
+            const sentences = text.split(/[.!?]/).filter(s => s.trim().split(/\s+/).filter(w => w.length > 1).length >= 8);
+
+            function isGibberish(str) {
+                const clean = str.toLowerCase().trim();
+                if (/([a-z0-9])\1{3,}/.test(clean)) return true;
+                const words = clean.split(/\s+/).filter(Boolean);
+                if (words.some(w => w.length > 5 && !/[aeiouy]/.test(w))) return true;
+
+                const homeRowMash = /^[asdfghjkl;']{6,}$/;
+                const topRowMash = /^[qwertyuiop]{6,}$/;
+                const bottomRowMash = /^[zxcvbnm]{6,}$/;
+                if (words.some(w => homeRowMash.test(w) || topRowMash.test(w) || bottomRowMash.test(w))) return true;
+
+                const uniqueChars = new Set(clean.replace(/[^a-z]/g, '')).size;
+                if (uniqueChars < 8) return true;
+
+                return false;
+            }
+
+            if (isGibberish(text)) {
+                targetArea.style.borderColor = "#ff0000";
+                targetArea.classList.add('animate-shake');
+                showToast("Gibberish detected in explanation! Refine your words.");
+                setTimeout(() => {
+                    targetArea.style.borderColor = "#5c3d2e";
+                    targetArea.classList.remove('animate-shake');
+                }, 1000);
+                return;
+            }
+
+            const wordsInText = text.toLowerCase().replace(/[^a-z ]/g, '').split(/\s+/);
+            const matchedKeywords = dictionary[topic].filter(keyword => wordsInText.includes(keyword) || text.toLowerCase().includes(keyword));
+            const uniqueMatches = [...new Set(matchedKeywords)];
+
+            if (sentences.length === 0 || uniqueMatches.length < 2) {
+                targetArea.style.borderColor = "#ff0000";
+                targetArea.classList.add('animate-shake');
+                if (uniqueMatches.length < 2) {
+                    showToast(`Weak explanation! Include key terms: e.g., ${dictionary[topic].slice(0, 4).join(', ')}`);
+                } else {
+                    showToast("Synthesis failed child-comprehension layout check (minimum one full sentence).");
+                }
                 setTimeout(() => {
                     targetArea.style.borderColor = "#5c3d2e";
                     targetArea.classList.remove('animate-shake');
@@ -2941,9 +3138,123 @@
             if (!window.firebaseLoaded) {
                 return;
             }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const isProxyLogin = urlParams.get('proxy_login') === 'true';
+
+            if (isProxyLogin) {
+                isAppInitialized = true;
+                renderProxyGateway(urlParams);
+                return;
+            }
             
             isAppInitialized = true;
             runSpireInitialization();
+        }
+
+        function renderProxyGateway(urlParams) {
+            const originURL = urlParams.get('origin') || 'https://spiresstage.netlify.app';
+            let originDomain = 'spiresstage.netlify.app';
+            try {
+                originDomain = new URL(originURL).hostname;
+            } catch (err) {
+                console.warn("Invalid origin URL provided:", originURL);
+            }
+            
+            document.body.innerHTML = `
+                <div class="brick-bg min-h-screen flex justify-center items-center p-4">
+                    <div class="retro-card max-w-sm w-full p-6 text-center space-y-6 relative border-4 border-black shadow-2xl overflow-hidden scanlines">
+                        <div class="absolute inset-x-0 top-0 h-1 bg-[#d8973c]"></div>
+                        
+                        <div class="space-y-2 mt-4">
+                            <h1 class="text-xl font-bold text-white tracking-widest" style="font-family: 'Press Start 2P'; font-size: 14px;">SPIRESTAGE</h1>
+                            <p class="text-yellow-500 animate-pulse text-[8px]" style="font-family: 'Press Start 2P';">SECURE IDENTITY GATEWAY</p>
+                        </div>
+                        
+                        <div class="flex justify-center py-2">
+                            <div class="w-16 h-16 bg-[#5c3d2e] rounded-full border-4 border-black flex items-center justify-center relative shadow-[0_0_15px_rgba(216,151,60,0.3)] animate-pulse">
+                                <i data-lucide="shield-check" class="w-8 h-8 text-[#E2C4A0]"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-3 px-2">
+                            <p class="text-[#E2C4A0] text-[7px]" style="font-family: 'Press Start 2P'; line-height: 1.8;">
+                                AUTHORIZING CONNECTION TO
+                            </p>
+                            <div class="bg-black/30 p-2 border-2 border-[#5c3d2e] rounded font-mono text-cyan-400 select-all overflow-hidden text-ellipsis" style="font-size: 9px;">
+                                ${originDomain}
+                            </div>
+                            <p class="text-gray-400 text-[6px]" style="font-family: 'Press Start 2P'; line-height: 1.8;">
+                                THIS CERTIFIES SECURE CRYPTOGRAPHIC HANDSHAKE VIA FIREBASE AUTH
+                            </p>
+                        </div>
+                        
+                        <div class="pt-4 space-y-4">
+                            <button id="gateway-signin-btn" class="w-full bg-white text-black py-4 px-2 flex items-center justify-center gap-3 border-b-8 border-r-8 border-gray-400 active:border-0 active:translate-y-2 active:translate-x-2 transition-all cursor-pointer">
+                                <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+                                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+                                    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                </svg>
+                                <span class="pixel-text font-bold text-[8px]" style="font-family: 'Press Start 2P';">SIGN IN WITH GOOGLE</span>
+                            </button>
+                            
+                            <p class="text-gray-500 text-[6px]" style="font-family: 'Press Start 2P';">PRESS TO OPEN ACCOUNT LIST</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+            
+            const btn = document.getElementById('gateway-signin-btn');
+            btn.addEventListener('click', async () => {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.innerHTML = `<span class="pixel-text text-[7px]" style="font-family: 'Press Start 2P';">LAUNCHING POPUP...</span>`;
+                try {
+                    const { auth, providers, methods } = window.firebaseUtils;
+                    if (!auth) throw new Error("Firebase Auth is not ready.");
+                    
+                    const provider = new providers.GoogleAuthProvider();
+                    provider.setCustomParameters({ prompt: 'select_account' });
+                    
+                    const result = await methods.signInWithPopup(auth, provider);
+                    const credential = providers.GoogleAuthProvider.credentialFromResult(result);
+                    
+                    if (credential && credential.idToken) {
+                        btn.innerHTML = `<span class="text-green-600 block text-center text-[7px]" style="font-family: 'Press Start 2P';">✓ SECURE CONXN SUCCESS!</span>`;
+                        btn.className = "w-full bg-green-200 text-green-800 py-4 px-2 flex items-center justify-center gap-3 border-4 border-green-600 rounded";
+                        
+                        // Pass token securely back to the parent Netlify window
+                        window.opener.postMessage({
+                            type: 'spire_proxy_auth_success',
+                            idToken: credential.idToken,
+                            accessToken: credential.accessToken
+                        }, originURL);
+                        
+                        setTimeout(() => {
+                            window.close();
+                        }, 1200);
+                    } else {
+                        throw new Error("No Google credentials returned.");
+                    }
+                } catch (err) {
+                    console.error("Popup gateway login core error:", err);
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.innerHTML = `
+                        <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+                            <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                        <span class="pixel-text font-bold text-[8px]" style="font-family: 'Press Start 2P';">RETRY IDENTITY LOGIN</span>
+                    `;
+                    alert("Identity Authorization failed: " + err.message);
+                }
+            });
         }
 
         function runSpireInitialization() {
