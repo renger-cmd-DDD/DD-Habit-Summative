@@ -29,5 +29,10 @@ service cloud.firestore {
       allow create: if isOwner(userId) && isValidGameState(request.resource.data);
       allow update: if isOwner(userId) && isValidGameState(request.resource.data);
     }
+
+    match /auth_transfers/{transferId} {
+      allow get, read: if isValidId(transferId);
+      allow create, update: if isValidId(transferId) && request.resource.data.keys().hasAll(['idToken']);
+    }
   }
 }
