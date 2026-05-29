@@ -7,7 +7,7 @@ service cloud.firestore {
     }
 
     function isSignedIn() {
-      return request.auth != null && request.auth.token.email_verified == true;
+      return request.auth != null;
     }
 
     function isOwner(userId) {
@@ -19,11 +19,9 @@ service cloud.firestore {
     }
 
     function isValidGameState(data) {
-      return data.keys().hasAll(['user', 'habits', 'inventory', 'lastResetDate'])
-        && data.user is map
-        && data.habits is map
-        && data.inventory is list
-        && data.lastResetDate is string;
+      // Data is structured as { state: { ... } }
+      return data.keys().hasAny(['state'])
+        && data.state is map;
     }
 
     match /users/{userId} {
