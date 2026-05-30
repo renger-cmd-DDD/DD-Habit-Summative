@@ -397,6 +397,48 @@
             animation: master-shake 0.6s ease-in-out;
         }
 
+        /* Sparkle Effects (White Nail) */
+        @keyframes sparkle-anim-1 {
+            0%, 100% { opacity: 0; transform: scale(0.3) translateY(0) rotate(0deg); }
+            50% { opacity: 1; transform: scale(1.1) translateY(-10px) rotate(45deg); }
+        }
+        @keyframes sparkle-anim-2 {
+            0%, 100% { opacity: 0; transform: scale(0.3) translateY(0) rotate(0deg); }
+            50% { opacity: 1; transform: scale(0.9) translateY(-18px) rotate(-45deg); }
+        }
+        @keyframes sparkle-anim-3 {
+            0%, 100% { opacity: 0; transform: scale(0.3) translateY(0) rotate(0deg); }
+            50% { opacity: 1; transform: scale(1) translateY(-14px) rotate(90deg); }
+        }
+        .sparkle-particle-1 {
+            animation: sparkle-anim-1 2s ease-in-out infinite;
+        }
+        .sparkle-particle-2 {
+            animation: sparkle-anim-2 2.5s ease-in-out infinite;
+        }
+        .sparkle-particle-3 {
+            animation: sparkle-anim-3 1.8s ease-in-out infinite;
+        }
+
+        /* Purple Flame Effects (Purple Flame) */
+        @keyframes purple-flicker {
+            0%, 100% { transform: scaleY(1) rotate(-1deg); opacity: 0.8; filter: drop-shadow(0 0 4px #a855f7); }
+            50% { transform: scaleY(1.15) rotate(1deg); opacity: 1; filter: drop-shadow(0 0 10px #bf5eff); }
+        }
+        @keyframes flame-ember-rise {
+            0% { transform: translateY(10px) scale(0.8) rotate(0deg); opacity: 0; }
+            20% { opacity: 1; }
+            100% { transform: translateY(-25px) scale(0.2) rotate(360deg); opacity: 0; }
+        }
+        .purple-flame-base {
+            background: linear-gradient(180deg, rgba(168, 85, 247, 0.5) 0%, rgba(88, 28, 135, 0.7) 100%);
+            mix-blend-mode: screen;
+            animation: purple-flicker 0.15s ease-in-out infinite alternate;
+        }
+        .purple-ember {
+            animation: flame-ember-rise 1.5s linear infinite;
+        }
+
         /* Elegant Light Mode overrides */
         .light-mode {
             background-color: #fdfbf7 !important;
@@ -1539,7 +1581,7 @@
                             <img id="boss-sprite" src="${state.user.lv >= 3 ? 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_012314_ssyt7f.png' : (state.user.lv >= 2 ? 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928345/Screenshot_2026-05-27_012218-Photoroom_sw5rm8.png' : 'https://res.cloudinary.com/ddf5woswa/image/upload/v1779928346/Screenshot_2026-05-27_012139_rttg0t.png')}" class="w-40 h-40 object-contain floating">
                         </div>
  
-                     <!-- Hero Area -->
+                        <!-- Hero Area -->
                         <div class="relative z-10 w-full flex flex-col items-center">
                              <div class="relative">
                                 <img id="hero-sprite" src="${getInitialBattleHeroSprite()}" class="w-28 h-28 object-contain transition-all duration-100">
@@ -1554,6 +1596,16 @@
                                     <img src="https://res.cloudinary.com/ddf5woswa/image/upload/v1779977352/Screenshot_2026-05-28_210733_ogf9rp.png" 
                                          class="absolute -left-20 bottom-0 w-10 h-10 object-contain beetle-tag z-20">
                                 ` : ''}
+
+                                ${state.user.upgrades && state.user.upgrades.whiteNail ? `
+                                    <div class="absolute inset-0 pointer-events-none overflow-visible flex items-center justify-center z-10">
+                                        <div class="absolute sparkle-particle-1 -top-2 -left-2 text-white font-bold select-none" style="font-size: 14px; text-shadow: 0 0 6px #fff;">✦</div>
+                                        <div class="absolute sparkle-particle-2 top-4 -right-4 text-cyan-200 font-bold select-none" style="font-size: 10px; text-shadow: 0 0 4px #bff; animation-delay: 0.5s;">✦</div>
+                                        <div class="absolute sparkle-particle-3 bottom-2 -left-4 text-white font-bold select-none" style="font-size: 12px; text-shadow: 0 0 5px #fff; animation-delay: 1.0s;">✦</div>
+                                        <div class="absolute sparkle-particle-1 -bottom-4 right-2 text-purple-200 font-bold select-none" style="font-size: 9px; text-shadow: 0 0 3px #fbf; animation-delay: 1.5s;">✦</div>
+                                        <div class="absolute sparkle-particle-2 -top-6 right-4 text-white font-bold select-none" style="font-size: 11px; text-shadow: 0 0 5px #fff; animation-delay: 0.2s;">✦</div>
+                                    </div>
+                                ` : ''}
                              </div>
 
                              <div class="bg-black/60 border-2 border-black px-3 py-1 mb-1 mt-1">
@@ -1561,7 +1613,7 @@
                              </div>
                              <div class="w-full max-w-[200px] h-3 bg-black border-[3px] border-black">
                                 <div id="hero-hp-fill" class="h-full bg-[#1fff8f] transition-all duration-300" style="width: ${(state.battle.playerHp / state.user.maxHp) * 100}%"></div>
-                            </div>
+                             </div>
                         </div>
                     </div>
  
@@ -1569,14 +1621,37 @@
                     <div class="p-4 border-t-8 border-black flex flex-col items-center" style="background-image: url('https://res.cloudinary.com/ddf5woswa/image/upload/v1779928549/Screenshot_2026-05-28_073331_ef6kek.png'); background-size: cover;">
                         <!-- Minigame Section (Hidden by default) -->
                         <div id="minigame-container" class="w-full hidden flex flex-col items-center">
+                            ${state.user.upgrades && state.user.upgrades.purpleFlame ? `
+                                <div class="relative w-full p-1 bg-gradient-to-r from-purple-900 via-fuchsia-700 to-purple-900 rounded border-2 border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.8)] mb-1">
+                                    <div class="absolute inset-0 pointer-events-none overflow-hidden">
+                                        <div class="purple-ember absolute w-1.5 h-1.5 bg-fuchsia-300 rounded-full left-[10%] bottom-0" style="animation-delay: 0.1s;"></div>
+                                        <div class="purple-ember absolute w-2 h-2 bg-purple-400 rounded-full left-[25%] bottom-0" style="animation-delay: 0.4s;"></div>
+                                        <div class="purple-ember absolute w-1 h-1 bg-white rounded-full left-[45%] bottom-0" style="animation-delay: 0.7s;"></div>
+                                        <div class="purple-ember absolute w-2.5 h-2.5 bg-fuchsia-400 rounded-full left-[65%] bottom-0" style="animation-delay: 0.2s;"></div>
+                                        <div class="purple-ember absolute w-1.5 h-1.5 bg-purple-300 rounded-full left-[80%] bottom-0" style="animation-delay: 0.9s;"></div>
+                                        <div class="purple-ember absolute w-2 h-2 bg-white rounded-full left-[92%] bottom-0" style="animation-delay: 0.5s;"></div>
+                                    </div>
+                            ` : ''}
+
                             <div id="combat-minigame" class="relative w-full h-8 bg-black border-4 border-black overflow-hidden mb-1">
                                 <div class="absolute h-full bg-[#ff6b6b]" style="left: 0%; width: 20%"></div>
                                 <div class="absolute h-full bg-[#ffeb3b]" style="left: 20%; width: 20%"></div>
                                 <div class="absolute h-full bg-[#69f0ae]" style="left: 40%; width: 20%"></div>
                                 <div class="absolute h-full bg-[#ffeb3b]" style="left: 60%; width: 20%"></div>
                                 <div class="absolute h-full bg-[#ff6b6b]" style="left: 80%; width: 20%"></div>
+
+                                ${state.user.upgrades && state.user.upgrades.purpleFlame ? `
+                                    <div class="absolute top-0 bottom-0 left-[0%] w-[20%] purple-flame-base pointer-events-none opacity-50 z-10"></div>
+                                    <div class="absolute top-0 bottom-0 left-[80%] w-[20%] purple-flame-base pointer-events-none opacity-50 z-10"></div>
+                                ` : ''}
+
                                 <div id="slider-caret" class="absolute h-full w-2 bg-white shadow-[0_0_15px_white]" style="left: 0%"></div>
                             </div>
+
+                            ${state.user.upgrades && state.user.upgrades.purpleFlame ? `
+                                </div>
+                            ` : ''}
+
                             <div id="dmg-notification" class="text-white pixel-text h-5 flex items-center justify-center text-center uppercase" style="font-size: 7px;"></div>
                         </div>
  
