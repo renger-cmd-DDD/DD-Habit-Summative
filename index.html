@@ -2995,14 +2995,7 @@
             if (heroSprite) {
                 const activeClass = state.user.characterClass || "ROGUE";
                 if (activeClass === "ROGUE") {
-                    const lv = state.user.lv || 1;
-                    if (lv === 1) {
-                        heroSprite.style.transform = "scale(1.0)";
-                    } else if (lv === 2) {
-                        heroSprite.style.transform = "scale(1.25)";
-                    } else if (lv >= 3) {
-                        heroSprite.style.transform = "scale(1.50)";
-                    }
+                    heroSprite.style.transform = "scale(0.8)";
                 } else {
                     heroSprite.style.transform = "scale(1.0)";
                 }
