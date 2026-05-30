@@ -62,6 +62,113 @@
             user-select: none;
             -webkit-tap-highlight-color: transparent;
             overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* Standard Mobile Bound Width Frame Layout */
+        #game-app-shell {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+            height: 100vh;
+            max-height: 720px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background-color: #1a1a1a;
+            box-sizing: border-box;
+        }
+
+        #login-gate.hidden,
+        #modal-overlay.hidden,
+        #battle-screen.hidden {
+            display: none !important;
+        }
+
+        @media (min-width: 768px) {
+            #game-app-shell {
+                height: 720px;
+                border-radius: 3rem;
+                border: 12px solid #5C3D2E;
+                box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+                margin-left: auto;
+                margin-right: auto;
+            }
+        }
+
+        #battle-screen {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 150;
+            background-color: #000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #login-gate {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 1000;
+            background-color: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #modal-overlay {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 200;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        #toast-container {
+            position: absolute !important;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1100;
+            pointer-events: none;
+        }
+
+        /* Lock background and visual retro images inside 480px parent */
+        .battle-background, 
+        #battle-screen img, 
+        .stage-backdrop, 
+        #login-gate img, 
+        #header-avatar,
+        #boss-sprite,
+        #hero-sprite {
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
         }
 
         /* Slim Custom Scrollbar */
@@ -189,11 +296,11 @@
 
         /* Toast notifications */
         #toast-container {
-            position: fixed;
+            position: absolute;
             top: 80px;
             left: 50%;
             transform: translateX(-50%);
-            z-index: 1000;
+            z-index: 1100;
         }
         .toast {
             background: #333;
@@ -337,80 +444,85 @@
         }
     </style>
 </head>
-<body class="brick-bg min-h-screen flex justify-center items-start">
+<body class="brick-bg min-h-screen flex justify-center items-center overflow-hidden">
 
-    <!-- Toast Container -->
-    <div id="toast-container"></div>
+    <!-- Dynamic Game App Shell (480px width bound, centered) -->
+    <div id="game-app-shell" class="relative w-full max-w-[480px] h-screen max-h-[720px] md:h-[720px] bg-[#1a1a1a] md:rounded-[3rem] md:border-[12px] border-[#5C3D2E] shadow-2xl flex flex-col overflow-hidden relative">
 
-    <!-- Login Gate Overlay -->
-    <div id="login-gate" class="fixed inset-0 z-[1000] bg-[#1a1a1a] flex flex-col items-center justify-center hidden">
-        <div id="login-gate-content" class="w-full h-full"></div>
-    </div>
+        <!-- Toast Container -->
+        <div id="toast-container" class="absolute top-20 left-1/2 -translate-x-1/2 z-[1100] pointer-events-none"></div>
 
-    <!-- Main Mobile Container -->
-    <div id="main-mobile-container" class="relative w-full max-w-[480px] h-screen max-h-[720px] bg-[#1a1a1a] md:rounded-[3rem] md:border-[12px] border-[#5C3D2E] shadow-2xl flex flex-col relative overflow-hidden my-auto">
-        
-        <!-- Stark, glaring red tint layout overlay for Level 3 penalty -->
-        <div id="leviathan-red-tint" class="hidden absolute inset-0 z-30 pointer-events-none mix-blend-color-burn bg-red-900/30 animate-pulse"></div>
-
-        <!-- WARNING BANNER AREA -->
-        <div id="consequence-warning-banner" class="hidden"></div>
-        
-        <!-- Permanent Top Header -->
-        <header id="main-header" class="h-20 bg-[#3d2b24] border-b-4 border-black flex items-center px-4 z-50">
-            <div class="w-14 h-14 bg-black border-4 border-black rounded p-1 mr-3 flex items-center justify-center overflow-hidden">
-                <img id="header-avatar" src="https://res.cloudinary.com/ddf5woswa/image/upload/v1779928549/Screenshot_2026-05-28_073309_xm4uic.png" class="w-full h-auto object-contain" alt="Avatar">
-            </div>
-            <div class="flex-grow">
-                <div id="header-name-container" class="relative group cursor-pointer" onclick="editProfileName()">
-                    <h1 id="header-profile-name" class="text-white pixel-text uppercase font-bold" style="font-size: 11px;">SpireStage</h1>
-                    <div id="header-name-input-container" class="hidden absolute top-0 left-0 w-full z-[100]">
-                        <input id="header-name-input" type="text" maxlength="10" class="w-full bg-black border-2 border-yellow-500 text-white pixel-text p-1 outline-none uppercase" style="font-size: 10px;">
-                    </div>
-                </div>
-                <p id="header-class-text" class="text-[#d8973c] pixel-text" style="font-size: 8px;">LV. <span id="header-lv">1</span> ROGUE</p>
-            </div>
-            <div class="bg-[#2a2a2a] border-4 border-black rounded px-3 py-2">
-                <p class="text-white pixel-text" style="font-size: 7px;">XP: <span id="header-xp">0</span> | <span class="text-yellow-500">CR: <span id="header-cr">100</span></span></p>
-            </div>
-        </header>
-
-        <!-- Dynamic Content Area -->
-        <main id="app-content" class="flex-grow overflow-y-auto pb-6 pt-6 px-6 custom-scrollbar">
-            <!-- Screens will be injected here -->
-        </main>
-
-        <!-- Fixed Bottom Navigation -->
-        <nav id="main-nav" class="h-20 bg-[#2a2a2a] border-t-4 border-black flex items-center justify-center gap-6 z-50">
-            <button onclick="switchScreen('arena')" id="nav-arena" class="nav-item flex flex-col items-center justify-center h-full flex-1 text-gray-400 active transform transition-all duration-100 active:scale-85 active:opacity-90">
-                <i data-lucide="swords" class="w-6 h-6 mb-1"></i>
-                <span class="pixel-text" style="font-size: 7px;">ARENA</span>
-            </button>
-            <button onclick="switchScreen('stats')" id="nav-stats" class="nav-item flex flex-col items-center justify-center h-full flex-1 text-gray-400 transform transition-all duration-100 active:scale-85 active:opacity-90">
-                <i data-lucide="bar-chart-3" class="w-6 h-6 mb-1"></i>
-                <span class="pixel-text" style="font-size: 7px;">STATS</span>
-            </button>
-            <button onclick="switchScreen('shop')" id="nav-shop" class="nav-item flex flex-col items-center justify-center h-full flex-1 text-gray-400 transform transition-all duration-100 active:scale-85 active:opacity-90">
-                <i data-lucide="shopping-bag" class="w-6 h-6 mb-1"></i>
-                <span class="pixel-text" style="font-size: 7px;">SHOP</span>
-            </button>
-            <button onclick="switchScreen('setup')" id="nav-setup" class="nav-item flex flex-col items-center justify-center h-full flex-1 text-gray-400 transform transition-all duration-100 active:scale-85 active:opacity-90">
-                <i data-lucide="settings" class="w-6 h-6 mb-1"></i>
-                <span class="pixel-text" style="font-size: 7px;">SETUP</span>
-            </button>
-        </nav>
-
-        <!-- Theatrical Overlay -->
-        <div class="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/40 via-transparent to-white/5 z-40"></div>
-        <!-- Version Tag -->
-        <div class="fixed bottom-10 left-10 text-[#E2C4A0]/20 text-[10px] vertical-rl rotate-180 pointer-events-none uppercase tracking-[0.5em] hidden lg:block">System Ver. 1.0.4 - Local AI Engaged</div>
-    </div>
-
-    <!-- Modals -->
-    <div id="modal-overlay" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[200] hidden">
-        <div id="modal-container" class="retro-card w-full max-w-sm p-6 text-white text-center">
-            <!-- Modal Content -->
+        <!-- Login Gate Overlay -->
+        <div id="login-gate" class="absolute inset-0 z-[1000] bg-[#1a1a1a] flex flex-col items-center justify-center hidden">
+            <div id="login-gate-content" class="w-full h-full"></div>
         </div>
+
+        <!-- Main Mobile Container -->
+        <div id="main-mobile-container" class="w-full h-full bg-[#1a1a1a] flex flex-col relative overflow-hidden">
+            
+            <!-- Stark, glaring red tint layout overlay for Level 3 penalty -->
+            <div id="leviathan-red-tint" class="hidden absolute inset-0 z-30 pointer-events-none mix-blend-color-burn bg-red-900/30 animate-pulse"></div>
+
+            <!-- WARNING BANNER AREA -->
+            <div id="consequence-warning-banner" class="hidden"></div>
+            
+            <!-- Permanent Top Header -->
+            <header id="main-header" class="h-20 bg-[#3d2b24] border-b-4 border-black flex items-center px-4 z-50">
+                <div class="w-14 h-14 bg-black border-4 border-black rounded p-1 mr-3 flex items-center justify-center overflow-hidden">
+                    <img id="header-avatar" src="https://res.cloudinary.com/ddf5woswa/image/upload/v1779928549/Screenshot_2026-05-28_073309_xm4uic.png" class="w-full h-auto object-contain" alt="Avatar">
+                </div>
+                <div class="flex-grow">
+                    <div id="header-name-container" class="relative group cursor-pointer" onclick="editProfileName()">
+                        <h1 id="header-profile-name" class="text-white pixel-text uppercase font-bold" style="font-size: 11px;">SpireStage</h1>
+                        <div id="header-name-input-container" class="hidden absolute top-0 left-0 w-full z-[100]">
+                            <input id="header-name-input" type="text" maxlength="10" class="w-full bg-black border-2 border-yellow-500 text-white pixel-text p-1 outline-none uppercase" style="font-size: 10px;">
+                        </div>
+                    </div>
+                    <p id="header-class-text" class="text-[#d8973c] pixel-text" style="font-size: 8px;">LV. <span id="header-lv">1</span> ROGUE</p>
+                </div>
+                <div class="bg-[#2a2a2a] border-4 border-black rounded px-3 py-2">
+                    <p class="text-white pixel-text" style="font-size: 7px;">XP: <span id="header-xp">0</span> | <span class="text-yellow-500">CR: <span id="header-cr">100</span></span></p>
+                </div>
+            </header>
+
+            <!-- Dynamic Content Area -->
+            <main id="app-content" class="flex-grow overflow-y-auto pb-6 pt-6 px-6 custom-scrollbar">
+                <!-- Screens will be injected here -->
+            </main>
+
+            <!-- Fixed Bottom Navigation -->
+            <nav id="main-nav" class="h-20 bg-[#2a2a2a] border-t-4 border-black flex items-center justify-center gap-6 z-50">
+                <button onclick="switchScreen('arena')" id="nav-arena" class="nav-item flex flex-col items-center justify-center h-full flex-1 text-gray-400 active transform transition-all duration-100 active:scale-85 active:opacity-90">
+                    <i data-lucide="swords" class="w-6 h-6 mb-1"></i>
+                    <span class="pixel-text" style="font-size: 7px;">ARENA</span>
+                </button>
+                <button onclick="switchScreen('stats')" id="nav-stats" class="nav-item flex flex-col items-center justify-center h-full flex-1 text-gray-400 transform transition-all duration-100 active:scale-85 active:opacity-90">
+                    <i data-lucide="bar-chart-3" class="w-6 h-6 mb-1"></i>
+                    <span class="pixel-text" style="font-size: 7px;">STATS</span>
+                </button>
+                <button onclick="switchScreen('shop')" id="nav-shop" class="nav-item flex flex-col items-center justify-center h-full flex-1 text-gray-400 transform transition-all duration-100 active:scale-85 active:opacity-90">
+                    <i data-lucide="shopping-bag" class="w-6 h-6 mb-1"></i>
+                    <span class="pixel-text" style="font-size: 7px;">SHOP</span>
+                </button>
+                <button onclick="switchScreen('setup')" id="nav-setup" class="nav-item flex flex-col items-center justify-center h-full flex-1 text-gray-400 transform transition-all duration-100 active:scale-85 active:opacity-90">
+                    <i data-lucide="settings" class="w-6 h-6 mb-1"></i>
+                    <span class="pixel-text" style="font-size: 7px;">SETUP</span>
+                </button>
+            </nav>
+
+            <!-- Theatrical Overlay -->
+            <div class="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/40 via-transparent to-white/5 z-40"></div>
+            <!-- Version Tag -->
+            <div class="absolute bottom-10 left-10 text-[#E2C4A0]/20 text-[10px] vertical-rl rotate-180 pointer-events-none uppercase tracking-[0.5em] hidden lg:block">System Ver. 1.0.4 - Local AI Engaged</div>
+        </div>
+
+        <!-- Modals inside the shell -->
+        <div id="modal-overlay" class="absolute inset-0 bg-black/80 flex items-center justify-center p-4 z-[200] hidden">
+            <div id="modal-container" class="retro-card w-full max-w-sm p-6 text-white text-center">
+                <!-- Modal Content -->
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -889,16 +1001,16 @@
 
         window.loginWithGoogle = function() {
             try {
-                const { auth, providers, methods } = window.firebaseUtils;
-                if (!auth) {
-                    alert("Firebase is not initialized. Please configure API keys.");
+                if (!window.firebaseUtils) {
+                    alert("Firebase is not initialized or still loading. Please configure API keys or wait.");
                     return showToast("Firebase not configured.");
                 }
+                const { auth, providers, methods } = window.firebaseUtils;
 
                 // Identify if current domain is already white-listed/authorized
                 const isAuthorizedDomain = window.location.hostname === 'localhost' || 
                                            window.location.hostname === '127.0.0.1' || 
-                                           window.location.hostname.endsWith('.run.app');
+                                           window.location.hostname === 'ais-pre-gm3jmilacyzdemsgaigkjb-386066285776.asia-southeast1.run.app';
 
                 if (!isAuthorizedDomain) {
                     console.log("Detecting unauthorized domain. Securely delegating authorization through Cloud Run Proxy.");
@@ -938,7 +1050,6 @@
                                         }
                                         
                                         showToast("LOGIN SUCCESSFUL");
-                                        setTimeout(() => window.location.reload(), 500);
                                     } catch (err) {
                                         console.error("Secure transfer authentication failed:", err);
                                         alert("Session validation failed: " + err.message);
@@ -988,7 +1099,6 @@
                 methods.signInWithPopup(auth, provider)
                     .then((result) => { 
                         showToast("LOGIN SUCCESSFUL");
-                        setTimeout(() => window.location.reload(), 500); 
                     })
                     .catch((e) => {
                         console.error("Login failed:", e);
@@ -1028,7 +1138,6 @@
                     await methods.signInWithCredential(auth, credential);
                     
                     showToast("SESSION COMPLETED!");
-                    setTimeout(() => window.location.reload(), 600);
                 } catch (err) {
                     console.error("Proxy credential sign-in failure:", err);
                     alert("Identity state verification failed: " + err.message);
@@ -1062,6 +1171,9 @@
                 applyLighting();
                 updateHeader();
                 switchScreen('arena', true);
+                if (typeof sound !== 'undefined') {
+                    sound.startAmbientMusic();
+                }
             } catch (err) {
                 console.error("Guest login failed:", err);
                 alert("Guest login error: " + err.message);
@@ -1309,22 +1421,32 @@
                             <i data-lucide="swords" class="w-5 h-5 mr-3 text-yellow-500"></i>EQUIPMENT & COMPANIONS
                         </h3>
                         <div class="grid grid-cols-2 gap-3">
-                            ${shopItems.equipment.map(item => `
-                                <div class="p-3 brown-card flex flex-col">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <div class="w-10 h-10 bg-black/40 border-2 border-black rounded flex items-center justify-center">
-                                            <i data-lucide="${item.icon}" class="w-5 h-5 text-purple-400"></i>
+                            ${shopItems.equipment.map(item => {
+                                const isOwned = state.inventory.includes(item.name);
+                                return `
+                                    <div class="p-3 brown-card flex flex-col">
+                                        <div class="flex justify-between items-center mb-2">
+                                            <div class="w-10 h-10 bg-black/40 border-2 border-black rounded flex items-center justify-center">
+                                                <i data-lucide="${item.icon}" class="w-5 h-5 text-purple-400"></i>
+                                            </div>
+                                            <div class="flex items-center bg-black/40 px-1 py-1 rounded-sm border border-black">
+                                                <span class="text-yellow-500 pixel-text" style="font-size: 6px;">${item.price}</span>
+                                                <i data-lucide="gem" class="w-2 h-2 text-blue-400 ml-1"></i>
+                                            </div>
                                         </div>
-                                        <div class="flex items-center bg-black/40 px-1 py-1 rounded-sm border border-black">
-                                            <span class="text-yellow-500 pixel-text" style="font-size: 6px;">${item.price}</span>
-                                            <i data-lucide="gem" class="w-2 h-2 text-blue-400 ml-1"></i>
-                                        </div>
+                                        <p class="text-white pixel-text mb-1" style="font-size: 8px;">${item.name}</p>
+                                        <p class="text-gray-400 pixel-text mb-4 flex-grow leading-tight" style="font-size: 6px;">${item.desc}</p>
+                                        <button 
+                                            onclick="buyItem('${item.name}', ${item.price})" 
+                                            class="w-full border-2 border-black py-2 pixel-text transform transition-all duration-100 active:scale-85 active:opacity-90 ${isOwned ? 'bg-[#2e5e3b] text-[#7effa7] opacity-80 cursor-not-allowed' : 'bg-[#8B0000] text-white'}" 
+                                            style="font-size: 7px;"
+                                            ${isOwned ? 'disabled' : ''}
+                                        >
+                                            ${isOwned ? 'ALREADY BOUGHT' : 'BUY'}
+                                        </button>
                                     </div>
-                                    <p class="text-white pixel-text mb-1" style="font-size: 8px;">${item.name}</p>
-                                    <p class="text-gray-400 pixel-text mb-4 flex-grow leading-tight" style="font-size: 6px;">${item.desc}</p>
-                                    <button onclick="buyItem('${item.name}', ${item.price})" class="w-full bg-[#8B0000] border-2 border-black py-2 text-white pixel-text transform transition-all duration-100 active:scale-85 active:opacity-90" style="font-size: 7px;">BUY</button>
-                                </div>
-                            `).join('')}
+                                `;
+                            }).join('')}
                         </div>
                     </div>
 
@@ -1395,7 +1517,7 @@
                 </div>
             `,
             battle: () => `
-                <div class="fixed inset-0 z-[150] bg-black flex flex-col" id="battle-screen">
+                <div class="absolute inset-0 z-[150] bg-black flex flex-col" id="battle-screen">
                     <div class="flex justify-between items-center p-4 bg-[#5c3d2e] border-b-4 border-black">
                         <h2 class="text-[#E2C4A0] pixel-text uppercase text-xl font-bold">BATTLE</h2>
                         <div class="bg-[#3d2b24] px-4 py-2 border-4 border-black">
@@ -2784,7 +2906,12 @@
                 animIntervals: []
             };
 
-            document.body.insertAdjacentHTML('beforeend', templates.battle());
+            const shell = document.getElementById('game-app-shell');
+            if (shell) {
+                shell.insertAdjacentHTML('beforeend', templates.battle());
+            } else {
+                document.body.insertAdjacentHTML('beforeend', templates.battle());
+            }
             lucide.createIcons();
 
             const heroSprite = document.getElementById('hero-sprite');
@@ -3144,7 +3271,7 @@
             
             checkLevelUp();
 
-            const battleScreen = document.querySelector('.fixed.inset-0.z-\\[150\\]');
+            const battleScreen = document.getElementById('battle-screen');
             battleScreen.innerHTML = `
                 <div class="flex-grow flex flex-col items-center justify-center bg-black/90 text-center p-10 z-[300]">
                     <h1 class="text-yellow-500 text-3xl font-bold mb-6 pixel-text">VICTORY</h1>
@@ -3178,7 +3305,7 @@
                 <div class="p-6 brown-card mb-6">
                     <p class="text-white pixel-text" style="font-size: 8px;">THE SPIRE HAS RECLAIMED YOU. ADVERSARY CONSEQUENCES APPLIED!</p>
                 </div>
-                <button onclick="closeModal(); document.querySelector('.fixed.inset-0.z-\\[150\\]').remove();" class="btn-crimson w-full py-4 text-white pixel-text">RETURN TO CAMP</button>
+                <button onclick="closeModal(); document.getElementById('battle-screen').remove();" class="btn-crimson w-full py-4 text-white pixel-text">RETURN TO CAMP</button>
             `);
         }
 
@@ -3186,7 +3313,7 @@
             sound.stopBattleMusic();
             sound.startAmbientMusic(); // Restart ambient after battle
             clearBattleIntervals();
-            const screen = document.querySelector('.fixed.inset-0.z-\\[150\\]');
+            const screen = document.getElementById('battle-screen');
             if (screen) screen.remove();
             switchScreen('arena');
         }
@@ -3355,7 +3482,7 @@
                 localStorage.setItem('spire_guest_state', JSON.stringify(state));
                 return;
             }
-            if (window.firebaseUtils.db) {
+            if (window.firebaseUtils && window.firebaseUtils.db) {
                 const { db, methods, auth } = window.firebaseUtils;
                 if (auth.currentUser) {
                     try {
@@ -3568,9 +3695,11 @@
             
             // Initial check for reset in case user is already logged in or session persists
             window.addEventListener('focus', () => {
-                const { auth } = window.firebaseUtils;
-                if (auth && auth.currentUser) {
-                    checkDailyReset();
+                if (window.firebaseUtils) {
+                    const { auth } = window.firebaseUtils;
+                    if (auth && auth.currentUser) {
+                        checkDailyReset();
+                    }
                 }
             });
 
@@ -3597,13 +3726,36 @@
                 applyLighting();
                 updateHeader();
                 switchScreen('arena', true);
+                if (typeof sound !== 'undefined') {
+                    sound.startAmbientMusic();
+                }
                 return;
             }
 
             // Check auth state for persistence if configured
-            if (window.firebaseUtils.auth) {
+            if (window.firebaseUtils && window.firebaseUtils.auth) {
                 window.firebaseUtils.methods.onAuthStateChanged(window.firebaseUtils.auth, async (user) => {
                     if (user) {
+                        try {
+                            const gateContent = document.getElementById('login-gate-content');
+                            if (gateContent) {
+                                gateContent.innerHTML = `
+                                    <div class="flex flex-col items-center justify-center h-full space-y-8 px-6 text-center">
+                                        <div class="w-16 h-16 bg-black/40 border-4 border-yellow-500 rounded-full flex items-center justify-center relative animate-pulse shadow-[0_0_15px_rgba(216,151,60,0.4)]">
+                                            <i data-lucide="shield-check" class="w-8 h-8 text-yellow-500"></i>
+                                        </div>
+                                        <div class="space-y-3">
+                                            <h3 class="text-white pixel-text animate-pulse" style="font-size: 11px;">VERIFYING CREDENTIALS...</h3>
+                                            <p class="text-gray-400 pixel-text uppercase" style="font-size: 6px;">RETRIEVING MEMORY CORE FROM CLOUD SPIRE</p>
+                                        </div>
+                                    </div>
+                                `;
+                                lucide.createIcons();
+                            }
+                        } catch (e) {
+                            console.warn("Error setting loading state:", e);
+                        }
+
                         const { db, methods } = window.firebaseUtils;
                         const docRef = methods.doc(db, "users", user.uid);
                         try {
@@ -3643,10 +3795,16 @@
                             updateHeader();
                             // Switch screen will handle hiding the login-gate
                             switchScreen('arena', true);
+                            if (typeof sound !== 'undefined') {
+                                sound.startAmbientMusic();
+                            }
                         } catch (e) {
                             console.error("Critical Cloud Fetch Failure:", e);
                             showToast("CLOUD ERROR: USING LOCAL SESSION");
                             switchScreen('arena', true);
+                            if (typeof sound !== 'undefined') {
+                                sound.startAmbientMusic();
+                            }
                         }
                     } else {
                         // Null Session State Block: Immediately freeze and show login gate
